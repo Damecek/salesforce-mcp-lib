@@ -7,7 +7,12 @@
       "default": true,
       "package": "SalesforceMcpLib",
       "versionDescription": "Generic Salesforce MCP library baseline",
-      "definitionFile": "config/package-version-def.json"
+      "definitionFile": "config/package-version-def.json",
+      "dependencies": [
+        {
+          "package": "04tfj000000Fw0TAAS"
+        }
+      ]
     }
   ],
   "name": "salesforce-mcp-lib",

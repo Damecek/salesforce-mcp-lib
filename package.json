@@ -10,6 +10,7 @@
     "task:prepare": "./scripts/task-prepare.sh",
     "task:prepare:skip-org": "./scripts/task-prepare-skip-org.sh",
     "validate": "./scripts/validate.sh",
+    "ref:apexjsonrpc": "./scripts/apexjsonrpc-reference.sh",
     "package:init": "./scripts/package-init.sh",
     "release:version": "./scripts/release-version.sh",
     "release:promote": "./scripts/release-promote.sh",
