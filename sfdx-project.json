@@ -1,0 +1,20 @@
+{
+  "packageDirectories": [
+    {
+      "versionName": "ver 1.0",
+      "versionNumber": "1.0.0.NEXT",
+      "path": "force-app",
+      "default": true,
+      "package": "SalesforceMcpLib",
+      "versionDescription": "Generic Salesforce MCP library baseline",
+      "definitionFile": "config/package-version-def.json"
+    }
+  ],
+  "name": "salesforce-mcp-lib",
+  "namespace": "",
+  "sfdcLoginUrl": "https://login.salesforce.com",
+  "sourceApiVersion": "65.0",
+  "packageAliases": {
+    "SalesforceMcpLib": "0HoPLACEHOLDER"
+  }
+}

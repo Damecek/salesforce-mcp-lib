@@ -1,0 +1,6 @@
+.sf
+.sfdx
+.sfhome
+.env
+.env.*
+!.env.example
