@@ -20,6 +20,7 @@
   "sfdcLoginUrl": "https://login.salesforce.com",
   "sourceApiVersion": "65.0",
   "packageAliases": {
-    "SalesforceMcpLib": "0HoPLACEHOLDER"
+    "SalesforceMcpLib": "0HodL0000002PQXSA2",
+    "SalesforceMcpLib@1.0.0-1": "04tdL000000PTEvQAO"
   }
 }
