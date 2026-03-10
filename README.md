@@ -26,7 +26,7 @@ npm run ref:apexjsonrpc
 
 Defaults:
 - `TARGET_ORG=sf-mcp-lib-scratch`
-- `PACKAGE_VERSION_ID=04tfj000000Fw0TAAS`
+- `PACKAGE_VERSION_ID=04tfj000000G2QrAAK`
 - `REF_DIR=/tmp/apex-json-rpc-ref`
 
 The script installs the package and retrieves source into `/tmp/...` for local reference only. Never commit retrieved package source.

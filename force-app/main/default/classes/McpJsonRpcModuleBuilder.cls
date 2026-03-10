@@ -199,12 +199,12 @@ public inherited sharing class McpJsonRpcModuleBuilder extends JsonRpcModuleBuil
 
             PromptsGetResult result = new PromptsGetResult();
             if (payload instanceof Map<String, Object>) {
-                result.value = (Map<String, Object>) payload;
-            } else {
-                result.value = new Map<String, Object>{
-                    'messages' => normalizeAsContentList(payload)
-                };
+                Map<String, Object> payloadMap = (Map<String, Object>) payload;
+                if (payloadMap.get('description') instanceof String) {
+                    result.description = (String) payloadMap.get('description');
+                }
             }
+            result.messages = normalizeAsPromptMessages(payload);
             return result;
         }
     }
@@ -247,6 +247,39 @@ public inherited sharing class McpJsonRpcModuleBuilder extends JsonRpcModuleBuil
         };
     }
 
+    private static List<Object> normalizeAsPromptMessages(Object payload) {
+        if (payload == null) {
+            return new List<Object>();
+        }
+
+        if (payload instanceof Map<String, Object>) {
+            Map<String, Object> payloadMap = (Map<String, Object>) payload;
+            if (payloadMap.containsKey('messages') && payloadMap.get('messages') instanceof List<Object>) {
+                return (List<Object>) payloadMap.get('messages');
+            }
+            if (payloadMap.containsKey('role') && payloadMap.containsKey('content')) {
+                return new List<Object>{ payloadMap };
+            }
+        }
+
+        if (payload instanceof List<Object>) {
+            List<Object> payloadList = (List<Object>) payload;
+            if (!payloadList.isEmpty() && payloadList[0] instanceof Map<String, Object>) {
+                Map<String, Object> firstEntry = (Map<String, Object>) payloadList[0];
+                if (firstEntry.containsKey('role') && firstEntry.containsKey('content')) {
+                    return payloadList;
+                }
+            }
+        }
+
+        return new List<Object>{
+            new Map<String, Object>{
+                'role' => 'user',
+                'content' => normalizeAsContentList(payload)
+            }
+        };
+    }
+
     private class EmptyParams extends JsonRpcParamsBase {
     }
 
@@ -281,14 +314,59 @@ public inherited sharing class McpJsonRpcModuleBuilder extends JsonRpcModuleBuil
         public List<Object> tools = new List<Object>();
     }
 
-    private class ToolsCallParams extends JsonRpcParamsBase {
+    private abstract class NamedArgumentsParams extends JsonRpcParamsBase implements JsonRpcRawParamsDecoder {
         public String name;
         public Map<String, Object> arguments;
+        private Boolean hasInvalidParamsShape = false;
+        private Boolean hasInvalidArgumentsShape = false;
+
+        protected abstract String methodNameForValidation();
+
+        public void decodeRawParams(Object rawParams) {
+            this.hasInvalidParamsShape = rawParams != null && !(rawParams instanceof Map<String, Object>);
+            if (this.hasInvalidParamsShape) {
+                return;
+            }
+
+            if (!(rawParams instanceof Map<String, Object>)) {
+                return;
+            }
+
+            Map<String, Object> rawMap = (Map<String, Object>) rawParams;
+            Object rawName = rawMap.get('name');
+            if (rawName instanceof String) {
+                this.name = (String) rawName;
+            }
+
+            if (!rawMap.containsKey('arguments') || rawMap.get('arguments') == null) {
+                return;
+            }
+
+            Object rawArguments = rawMap.get('arguments');
+            if (!(rawArguments instanceof Map<String, Object>)) {
+                this.hasInvalidArgumentsShape = true;
+                return;
+            }
+
+            this.arguments = (Map<String, Object>) rawArguments;
+        }
 
         public override void validate() {
-            if (String.isBlank(this.name)) {
-                throw new McpExceptions.InvalidParamsException('tools/call requires non-empty name.');
+            if (this.hasInvalidParamsShape) {
+                throw new McpExceptions.InvalidParamsException(this.methodNameForValidation() + ' requires params to be an object.');
             }
+            if (String.isBlank(this.name)) {
+                throw new McpExceptions.InvalidParamsException(this.methodNameForValidation() + ' requires non-empty name.');
+            }
+            if (this.hasInvalidArgumentsShape) {
+                throw new McpExceptions.InvalidParamsException(this.methodNameForValidation() + ' requires arguments to be an object when present.');
+            }
+        }
+    }
+
+    private class ToolsCallParams extends NamedArgumentsParams {
+        protected override String methodNameForValidation() {
+            return METHOD_TOOLS_CALL;
         }
     }
 
@@ -319,14 +397,9 @@ public inherited sharing class McpJsonRpcModuleBuilder extends JsonRpcModuleBuil
         public List<Object> resourceTemplates = new List<Object>();
     }
 
-    private class ResourceTemplatesCallParams extends JsonRpcParamsBase {
-        public String name;
-        public Map<String, Object> arguments;
-
-        public override void validate() {
-            if (String.isBlank(this.name)) {
-                throw new McpExceptions.InvalidParamsException('resources/templates/call requires non-empty name.');
-            }
+    private class ResourceTemplatesCallParams extends NamedArgumentsParams {
+        protected override String methodNameForValidation() {
+            return METHOD_RESOURCES_TEMPLATES_CALL;
         }
     }
 
@@ -338,18 +411,14 @@ public inherited sharing class McpJsonRpcModuleBuilder extends JsonRpcModuleBuil
         public List<Object> prompts = new List<Object>();
     }
 
-    private class PromptsGetParams extends JsonRpcParamsBase {
-        public String name;
-        public Map<String, Object> arguments;
-
-        public override void validate() {
-            if (String.isBlank(this.name)) {
-                throw new McpExceptions.InvalidParamsException('prompts/get requires non-empty name.');
-            }
+    private class PromptsGetParams extends NamedArgumentsParams {
+        protected override String methodNameForValidation() {
+            return METHOD_PROMPTS_GET;
         }
     }
 
     private class PromptsGetResult extends JsonRpcResultBase {
-        public Map<String, Object> value = new Map<String, Object>();
+        public String description;
+        public List<Object> messages = new List<Object>();
     }
 }

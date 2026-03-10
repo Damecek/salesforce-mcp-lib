@@ -38,6 +38,12 @@ private class McpHttpTransportTest {
         System.assertEquals(200, response.statusCode);
         System.assertEquals('application/json', response.headers.get('Content-Type'));
         System.assertNotEquals(null, response.responseBody);
+
+        Map<String, Object> payload = (Map<String, Object>) JSON.deserializeUntyped(response.responseBody.toString());
+        Map<String, Object> result = (Map<String, Object>) payload.get('result');
+        List<Object> content = (List<Object>) result.get('content');
+        Map<String, Object> item = (Map<String, Object>) content[0];
+        System.assertEquals('hello', item.get('text'));
     }
 
     @IsTest

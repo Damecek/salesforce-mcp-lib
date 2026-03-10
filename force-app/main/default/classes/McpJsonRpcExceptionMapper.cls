@@ -9,11 +9,23 @@ public inherited sharing class McpJsonRpcExceptionMapper implements JsonRpcExcep
      * @return JSON-RPC error payload.
      */
     public JsonRpcError mapException(Exception ex, JsonRpcInvocationContext context) {
-        if (ex instanceof McpExceptions.NotFoundException) {
+        if (ex instanceof JsonRpcServiceRuntime.ParseFailureException) {
+            return JsonRpcError.parseError(errorData(ex, context));
+        }
+
+        if (ex instanceof JsonRpcServiceRuntime.InvalidRequestException) {
+            return JsonRpcError.invalidRequest(errorData(ex, context));
+        }
+
+        if (ex instanceof JsonRpcServiceRuntime.MethodNotFoundException || ex instanceof McpExceptions.NotFoundException) {
             return JsonRpcError.methodNotFound(errorData(ex, context));
         }
 
-        if (ex instanceof McpExceptions.InvalidParamsException || ex instanceof McpInvalidParamsException) {
+        if (
+            ex instanceof JsonRpcServiceRuntime.InvalidParamsException ||
+            ex instanceof McpExceptions.InvalidParamsException ||
+            ex instanceof McpInvalidParamsException
+        ) {
             return JsonRpcError.invalidParams(errorData(ex, context));
         }
 
