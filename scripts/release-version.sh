@@ -3,7 +3,7 @@ set -euo pipefail
 
 DEVHUB_ALIAS="${DEVHUB_ALIAS:-mcp-lib-devhub}"
 PACKAGE_NAME="${PACKAGE_NAME:-SalesforceMcpLib}"
-VERSION_NAME="${VERSION_NAME:-v0.1.0}"
+VERSION_NAME="${VERSION_NAME:-v1.0.1}"
 VERSION_DESC="${VERSION_DESC:-Generic Salesforce MCP library baseline}"
 
 ./scripts/validate.sh

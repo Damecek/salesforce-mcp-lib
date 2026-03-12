@@ -1,6 +1,6 @@
 {
   "name": "salesforce-mcp-lib",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Salesforce 2GP template repository",
   "scripts": {

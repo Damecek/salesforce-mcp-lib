@@ -62,10 +62,13 @@ public inherited sharing class McpJsonRpcModuleBuilder extends JsonRpcModuleBuil
 
     private inherited sharing class InitializeHandler extends BaseHandler {
         private InitializeHandler(McpServer sourceServer) {
-            super(sourceServer, METHOD_INITIALIZE, McpInitializeParams.class, McpInitializeResult.class);
+            super(sourceServer, METHOD_INITIALIZE, McpEmptyParams.class, McpInitializeResult.class);
         }
 
         public override JsonRpcResultBase invoke(JsonRpcParamsBase params, JsonRpcInvocationContext context) {
+            McpInitializeParams typed = new McpInitializeParams();
+            typed.loadFromRaw(context?.rawRequest.get('params'));
+
             McpInitializeResult result = new McpInitializeResult();
             result.protocolVersion = this.server.protocolVersion;
             result.serverInfo.name = this.server.serverName;

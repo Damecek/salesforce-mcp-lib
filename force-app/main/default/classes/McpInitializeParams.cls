@@ -4,5 +4,40 @@
 public inherited sharing class McpInitializeParams extends JsonRpcParamsBase {
     public String protocolVersion;
     public Map<String, Object> capabilities;
-    public Map<String, Object> clientInfo;
+    public McpInitializeClientInfo clientInfo;
+
+    public void loadFromRaw(Object rawParams) {
+        if (rawParams != null && !(rawParams instanceof Map<String, Object>)) {
+            throw new McpExceptions.InvalidParamsException('initialize requires params to be an object.');
+        }
+
+        if (rawParams == null) {
+            return;
+        }
+
+        Map<String, Object> rawMap = (Map<String, Object>) rawParams;
+
+        Object rawProtocolVersion = rawMap.get('protocolVersion');
+        if (rawProtocolVersion instanceof String) {
+            this.protocolVersion = (String) rawProtocolVersion;
+        }
+
+        if (rawMap.containsKey('capabilities')) {
+            Object rawCapabilities = rawMap.get('capabilities');
+            if (rawCapabilities != null && !(rawCapabilities instanceof Map<String, Object>)) {
+                throw new McpExceptions.InvalidParamsException('initialize requires capabilities to be an object when present.');
+            }
+            this.capabilities = (Map<String, Object>) rawCapabilities;
+        }
+
+        if (rawMap.containsKey('clientInfo')) {
+            Object rawClientInfo = rawMap.get('clientInfo');
+            if (rawClientInfo == null) {
+                return;
+            }
+
+            this.clientInfo = new McpInitializeClientInfo();
+            this.clientInfo.loadFromRaw(rawClientInfo);
+        }
+    }
 }
