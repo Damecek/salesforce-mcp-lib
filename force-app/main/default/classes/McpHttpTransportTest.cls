@@ -1,16 +1,17 @@
 @IsTest
 private class McpHttpTransportTest {
     private class EchoTool implements McpToolExecutor {
-        public Object execute(Map<String, Object> arguments, McpRequestContext context) {
-            return new Map<String, Object>{
-                'type' => 'text',
-                'text' => String.valueOf(arguments.get('value'))
-            };
+        public McpToolResult execute(JsonRpcParamsBase arguments, McpRequestContext context) {
+            McpHttpTransportTestEchoArguments typed = (McpHttpTransportTestEchoArguments) arguments;
+
+            McpToolResult result = new McpToolResult();
+            result.content.add(new McpTextContent(typed.value));
+            return result;
         }
     }
 
     private static McpServer buildServer() {
-        McpToolDefinition toolDef = new McpToolDefinition('echo.tool', 'Echoes text value.');
+        McpToolDefinition toolDef = new McpToolDefinition('echo.tool', 'Echoes text value.', McpHttpTransportTestEchoArguments.class);
         return new McpServer('Transport Test', '0.0.1').registerTool(toolDef, new EchoTool());
     }
 

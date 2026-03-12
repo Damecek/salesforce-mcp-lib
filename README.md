@@ -12,6 +12,12 @@ Out of scope in package runtime:
 - Domain-specific tool/resource/template behavior.
 - Consumer-specific endpoint wiring.
 
+## Design Principles
+- Follow ApexJsonRpc's current class-first API style.
+- Prefer typed DTO classes for MCP arguments, results, and descriptors.
+- Keep `Object` and `Map<String, Object>` only at protocol boundaries or for free-form JSON schema fragments.
+- Treat examples as typed consumer patterns, not map-plumbing recipes.
+
 ## Quick Start
 ```bash
 npm run task:prepare
@@ -26,7 +32,7 @@ npm run ref:apexjsonrpc
 
 Defaults:
 - `TARGET_ORG=sf-mcp-lib-scratch`
-- `PACKAGE_VERSION_ID=04tfj000000G2QrAAK`
+- `PACKAGE_VERSION_ID=04tfj000000GCRpAAO`
 - `REF_DIR=/tmp/apex-json-rpc-ref`
 
 The script installs the package and retrieves source into `/tmp/...` for local reference only. Never commit retrieved package source.
@@ -45,5 +51,5 @@ The script installs the package and retrieves source into `/tmp/...` for local r
 ## Examples
 Examples live in `examples/` and are intentionally not packaged runtime defaults.
 
-- `examples/minimal`: minimal server registration and request dispatch.
-- `examples/e2e-http-endpoint`: full endpoint wiring with list/call/read/template flow.
+- `examples/minimal`: minimal typed server registration and request dispatch.
+- `examples/e2e-http-endpoint`: full endpoint wiring with typed list/call/read/template handlers.

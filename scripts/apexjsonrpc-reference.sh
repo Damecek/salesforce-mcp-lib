@@ -2,7 +2,7 @@
 set -euo pipefail
 
 TARGET_ORG="${TARGET_ORG:-sf-mcp-lib-scratch}"
-PACKAGE_VERSION_ID="${PACKAGE_VERSION_ID:-04tfj000000G2QrAAK}"
+PACKAGE_VERSION_ID="${PACKAGE_VERSION_ID:-04tfj000000GCRpAAO}"
 REF_DIR="${REF_DIR:-/tmp/apex-json-rpc-ref}"
 
 echo "Installing ApexJsonRpc ${PACKAGE_VERSION_ID} into ${TARGET_ORG}..."

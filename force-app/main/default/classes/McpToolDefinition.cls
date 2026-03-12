@@ -14,7 +14,11 @@ public inherited sharing class McpToolDefinition {
     /** @description Optional JSON-Schema-like input descriptor. */
     public Map<String, Object> inputSchema;
     /** @description Optional tool annotations. */
-    public Map<String, Object> annotations;
+    public McpToolAnnotations annotations;
+    private Type argumentsTypeValue = JsonRpcParamsBase.class;
+
+    public McpToolDefinition() {
+    }
 
     /**
      * @description Creates a tool descriptor.
@@ -22,8 +26,27 @@ public inherited sharing class McpToolDefinition {
      * @param toolDescription Human-readable description.
      */
     public McpToolDefinition(String toolName, String toolDescription) {
+        this(toolName, toolDescription, JsonRpcParamsBase.class);
+    }
+
+    /**
+     * @description Creates a tool descriptor with explicit typed arguments DTO.
+     * @param toolName Unique tool name.
+     * @param toolDescription Human-readable description.
+     * @param argumentsType Typed arguments DTO extending JsonRpcParamsBase.
+     */
+    public McpToolDefinition(String toolName, String toolDescription, Type argumentsType) {
         this.name = toolName;
         this.description = toolDescription;
+        this.argumentsTypeValue = argumentsType == null ? JsonRpcParamsBase.class : argumentsType;
+    }
+
+    /**
+     * @description Returns the declared typed arguments DTO.
+     * @return Arguments type extending JsonRpcParamsBase.
+     */
+    public Type argumentsType() {
+        return this.argumentsTypeValue;
     }
 
     /**
@@ -33,28 +56,24 @@ public inherited sharing class McpToolDefinition {
         if (String.isBlank(this.name)) {
             throw new McpInvalidParamsException('Tool name is required.');
         }
+
+        validateArgumentsType(this.argumentsTypeValue, 'Tool arguments type');
     }
 
-    /**
-     * @description Converts this descriptor into a serializable map.
-     * @return Map representation used in MCP responses.
-     */
-    public Map<String, Object> toMap() {
-        validate();
-
-        Map<String, Object> payload = new Map<String, Object>{
-            'name' => this.name,
-            'description' => this.description
-        };
-
-        if (this.inputSchema != null) {
-            payload.put('inputSchema', this.inputSchema);
+    private static void validateArgumentsType(Type candidateType, String label) {
+        if (candidateType == null) {
+            throw new McpInvalidParamsException(label + ' is required.');
         }
 
-        if (this.annotations != null) {
-            payload.put('annotations', this.annotations);
+        Object probe;
+        try {
+            probe = candidateType.newInstance();
+        } catch (Exception ex) {
+            throw new McpInvalidParamsException(label + ' must be instantiable.');
         }
 
-        return payload;
+        if (!(probe instanceof JsonRpcParamsBase)) {
+            throw new McpInvalidParamsException(label + ' must extend JsonRpcParamsBase.');
+        }
     }
 }

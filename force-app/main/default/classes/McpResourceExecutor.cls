@@ -6,7 +6,7 @@ public interface McpResourceExecutor {
      * @description Resolves resource content.
      * @param resourceUri Resource URI.
      * @param context Invocation context for this request.
-     * @return Arbitrary resource payload returned to MCP client.
+     * @return Typed resource payload returned to MCP client.
      */
-    Object read(String resourceUri, McpRequestContext context);
+    McpResourceResult read(String resourceUri, McpRequestContext context);
 }

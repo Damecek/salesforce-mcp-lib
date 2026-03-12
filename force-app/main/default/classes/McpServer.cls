@@ -160,66 +160,131 @@ public inherited sharing class McpServer {
     }
 
     /**
-     * @description Executes a tool by name.
+     * @description Deserializes raw tool arguments into the tool's declared DTO type.
      * @param toolName Registered tool name.
-     * @param arguments Untyped arguments map.
-     * @param context Invocation context.
-     * @return Tool payload returned by executor.
+     * @param rawArguments Raw arguments map from the protocol edge.
+     * @return Typed DTO extending JsonRpcParamsBase.
      */
-    public Object callTool(String toolName, Map<String, Object> arguments, McpRequestContext context) {
+    public JsonRpcParamsBase deserializeToolArguments(String toolName, Map<String, Object> rawArguments) {
+        McpToolDefinition definition = this.toolsByName.get(toolName);
+        if (definition == null) {
+            throw new McpExceptions.NotFoundException('Tool is not registered: ' + toolName);
+        }
+
+        return deserializeArguments(rawArguments, definition.argumentsType(), 'tools/call');
+    }
+
+    /**
+     * @description Deserializes raw resource template arguments into the template's declared DTO type.
+     * @param templateName Registered template name.
+     * @param rawArguments Raw arguments map from the protocol edge.
+     * @return Typed DTO extending JsonRpcParamsBase.
+     */
+    public JsonRpcParamsBase deserializeResourceTemplateArguments(String templateName, Map<String, Object> rawArguments) {
+        McpResourceTemplateDefinition definition = this.templatesByName.get(templateName);
+        if (definition == null) {
+            throw new McpExceptions.NotFoundException('Resource template is not registered: ' + templateName);
+        }
+
+        return deserializeArguments(rawArguments, definition.argumentsType(), 'resources/templates/call');
+    }
+
+    /**
+     * @description Deserializes raw prompt arguments into the prompt's declared DTO type.
+     * @param promptName Registered prompt name.
+     * @param rawArguments Raw arguments map from the protocol edge.
+     * @return Typed DTO extending JsonRpcParamsBase.
+     */
+    public JsonRpcParamsBase deserializePromptArguments(String promptName, Map<String, Object> rawArguments) {
+        McpPromptDefinition definition = this.promptsByName.get(promptName);
+        if (definition == null) {
+            throw new McpExceptions.NotFoundException('Prompt is not registered: ' + promptName);
+        }
+
+        return deserializeArguments(rawArguments, definition.argumentsType(), 'prompts/get');
+    }
+
+    /**
+     * @description Executes a tool by name with typed arguments.
+     * @param toolName Registered tool name.
+     * @param arguments Typed arguments DTO.
+     * @param context Invocation context.
+     * @return Typed tool result returned by executor.
+     */
+    public McpToolResult callTool(String toolName, JsonRpcParamsBase arguments, McpRequestContext context) {
         McpToolExecutor executor = this.toolExecutorsByName.get(toolName);
         if (executor == null) {
             throw new McpExceptions.NotFoundException('Tool is not registered: ' + toolName);
         }
 
-        return executor.execute(arguments == null ? new Map<String, Object>() : arguments, context);
+        McpToolResult result = executor.execute(arguments == null ? new JsonRpcParamsBase() : arguments, context);
+        if (result == null) {
+            throw new McpExceptions.InternalException('Tool executor returned null result.');
+        }
+        validateExecutorResult(result, 'Tool executor returned invalid result.');
+        return result;
     }
 
     /**
      * @description Reads a resource by URI.
      * @param resourceUri Registered resource URI.
      * @param context Invocation context.
-     * @return Resource payload returned by executor.
+     * @return Typed resource payload returned by executor.
      */
-    public Object readResource(String resourceUri, McpRequestContext context) {
+    public McpResourceResult readResource(String resourceUri, McpRequestContext context) {
         McpResourceExecutor executor = this.resourceExecutorsByUri.get(resourceUri);
         if (executor == null) {
             throw new McpExceptions.NotFoundException('Resource is not registered: ' + resourceUri);
         }
 
-        return executor.read(resourceUri, context);
+        McpResourceResult result = executor.read(resourceUri, context);
+        if (result == null) {
+            throw new McpExceptions.InternalException('Resource executor returned null result.');
+        }
+        validateExecutorResult(result, 'Resource executor returned invalid result.');
+        return result;
     }
 
     /**
-     * @description Resolves a resource template by name.
+     * @description Resolves a resource template by name with typed arguments.
      * @param templateName Registered template name.
-     * @param arguments Untyped arguments map.
+     * @param arguments Typed arguments DTO.
      * @param context Invocation context.
-     * @return Template payload returned by executor.
+     * @return Typed template payload returned by executor.
      */
-    public Object callResourceTemplate(String templateName, Map<String, Object> arguments, McpRequestContext context) {
+    public McpResourceResult callResourceTemplate(String templateName, JsonRpcParamsBase arguments, McpRequestContext context) {
         McpResourceTemplateExecutor executor = this.templateExecutorsByName.get(templateName);
         if (executor == null) {
             throw new McpExceptions.NotFoundException('Resource template is not registered: ' + templateName);
         }
 
-        return executor.resolve(arguments == null ? new Map<String, Object>() : arguments, context);
+        McpResourceResult result = executor.resolve(arguments == null ? new JsonRpcParamsBase() : arguments, context);
+        if (result == null) {
+            throw new McpExceptions.InternalException('Resource template executor returned null result.');
+        }
+        validateExecutorResult(result, 'Resource template executor returned invalid result.');
+        return result;
     }
 
     /**
-     * @description Resolves a prompt by name.
+     * @description Resolves a prompt by name with typed arguments.
      * @param promptName Registered prompt name.
-     * @param arguments Untyped arguments map.
+     * @param arguments Typed arguments DTO.
      * @param context Invocation context.
-     * @return Prompt payload returned by executor.
+     * @return Typed prompt payload returned by executor.
      */
-    public Object getPrompt(String promptName, Map<String, Object> arguments, McpRequestContext context) {
+    public McpPromptResult getPrompt(String promptName, JsonRpcParamsBase arguments, McpRequestContext context) {
         McpPromptExecutor executor = this.promptExecutorsByName.get(promptName);
         if (executor == null) {
             throw new McpExceptions.NotFoundException('Prompt is not registered: ' + promptName);
         }
 
-        return executor.resolve(arguments == null ? new Map<String, Object>() : arguments, context);
+        McpPromptResult result = executor.resolve(arguments == null ? new JsonRpcParamsBase() : arguments, context);
+        if (result == null) {
+            throw new McpExceptions.InternalException('Prompt executor returned null result.');
+        }
+        validateExecutorResult(result, 'Prompt executor returned invalid result.');
+        return result;
     }
 
     /**
@@ -239,6 +304,55 @@ public inherited sharing class McpServer {
         JsonRpcServiceRuntimeOptions options = new JsonRpcServiceRuntimeOptions();
         options.exceptionMapper = new McpJsonRpcExceptionMapper();
         return JsonRpcServiceRuntime.execute(requestJson, this.toJsonRpcModule(), options);
+    }
+
+    private static JsonRpcParamsBase deserializeArguments(Map<String, Object> rawArguments, Type argumentsType, String operationName) {
+        Type effectiveType = argumentsType == null ? JsonRpcParamsBase.class : argumentsType;
+        if (String.valueOf(effectiveType) == String.valueOf(JsonRpcParamsBase.class)) {
+            return new JsonRpcParamsBase();
+        }
+
+        Object probe;
+        try {
+            probe = effectiveType.newInstance();
+        } catch (Exception ex) {
+            throw new McpInvalidParamsException(operationName + ' arguments type must be instantiable.');
+        }
+
+        if (!(probe instanceof JsonRpcParamsBase)) {
+            throw new McpInvalidParamsException(operationName + ' arguments type must extend JsonRpcParamsBase.');
+        }
+
+        JsonRpcParamsBase typedArguments = (JsonRpcParamsBase) probe;
+        if (rawArguments != null) {
+            try {
+                typedArguments = (JsonRpcParamsBase) JSON.deserialize(JSON.serialize(rawArguments), effectiveType);
+            } catch (Exception ex) {
+                throw new McpExceptions.InvalidParamsException(operationName + ' arguments must match the declared DTO shape.');
+            }
+        }
+
+        try {
+            typedArguments.validate();
+        } catch (McpExceptions.InvalidParamsException ex) {
+            throw ex;
+        } catch (McpInvalidParamsException ex) {
+            throw new McpExceptions.InvalidParamsException(ex.getMessage());
+        } catch (JsonRpcException ex) {
+            throw new McpExceptions.InvalidParamsException(ex.getMessage());
+        } catch (Exception ex) {
+            throw new McpExceptions.InvalidParamsException(operationName + ' arguments failed validation.');
+        }
+
+        return typedArguments;
+    }
+
+    private static void validateExecutorResult(JsonRpcResultBase result, String errorMessage) {
+        try {
+            result.validate();
+        } catch (Exception ex) {
+            throw new McpExceptions.InternalException(errorMessage);
+        }
     }
 
     private static List<McpToolDefinition> sortToolDefinitions(List<McpToolDefinition> values) {

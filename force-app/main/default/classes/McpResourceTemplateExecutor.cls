@@ -4,9 +4,9 @@
 public interface McpResourceTemplateExecutor {
     /**
      * @description Resolves template output payload.
-     * @param arguments Untyped template arguments.
+     * @param arguments Typed template arguments DTO declared by the template definition.
      * @param context Invocation context for this request.
-     * @return Arbitrary resolved payload returned to MCP client.
+     * @return Typed resolved payload returned to MCP client.
      */
-    Object resolve(Map<String, Object> arguments, McpRequestContext context);
+    McpResourceResult resolve(JsonRpcParamsBase arguments, McpRequestContext context);
 }

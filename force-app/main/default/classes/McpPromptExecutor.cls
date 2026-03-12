@@ -4,9 +4,9 @@
 public interface McpPromptExecutor {
     /**
      * @description Resolves prompt payload.
-     * @param arguments Untyped prompt arguments.
+     * @param arguments Typed prompt arguments DTO declared by the prompt definition.
      * @param context Invocation context for this request.
-     * @return Prompt payload, typically map with messages.
+     * @return Typed prompt payload.
      */
-    Object resolve(Map<String, Object> arguments, McpRequestContext context);
+    McpPromptResult resolve(JsonRpcParamsBase arguments, McpRequestContext context);
 }

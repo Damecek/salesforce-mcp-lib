@@ -11,6 +11,9 @@ public inherited sharing class McpResourceDefinition {
     /** @description Optional MIME type of resource payload. */
     public String mimeType;
 
+    public McpResourceDefinition() {
+    }
+
     /**
      * @description Creates a resource descriptor.
      * @param resourceUri Stable resource URI.
@@ -32,23 +35,4 @@ public inherited sharing class McpResourceDefinition {
         }
     }
 
-    /**
-     * @description Converts this descriptor into a serializable map.
-     * @return Map representation used in MCP responses.
-     */
-    public Map<String, Object> toMap() {
-        validate();
-
-        Map<String, Object> payload = new Map<String, Object>{
-            'uri' => this.uri,
-            'name' => this.name,
-            'description' => this.description
-        };
-
-        if (!String.isBlank(this.mimeType)) {
-            payload.put('mimeType', this.mimeType);
-        }
-
-        return payload;
-    }
 }

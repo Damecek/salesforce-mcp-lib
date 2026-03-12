@@ -4,9 +4,9 @@
 public interface McpToolExecutor {
     /**
      * @description Executes tool business logic.
-     * @param arguments Untyped arguments map from tools/call.
+     * @param arguments Typed arguments DTO declared by the tool definition.
      * @param context Invocation context for this request.
-     * @return Arbitrary result payload returned to MCP client.
+     * @return Typed tool result payload returned to MCP client.
      */
-    Object execute(Map<String, Object> arguments, McpRequestContext context);
+    McpToolResult execute(JsonRpcParamsBase arguments, McpRequestContext context);
 }

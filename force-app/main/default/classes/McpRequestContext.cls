@@ -4,8 +4,8 @@
 public inherited sharing class McpRequestContext {
     /** @description JSON-RPC method name, for diagnostics and telemetry. */
     public String methodName;
-    /** @description Raw request identifier. */
-    public Object requestId;
+    /** @description Typed JSON-RPC request identifier wrapper. */
+    public JsonRpcIdValue requestId;
     /** @description Raw JSON-RPC request envelope. */
     public Map<String, Object> rawRequest;
     /** @description Zero-based index for batch requests. */

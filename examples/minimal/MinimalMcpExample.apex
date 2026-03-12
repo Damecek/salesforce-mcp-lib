@@ -1,6 +1,6 @@
 public inherited sharing class MinimalMcpExample {
     public static McpServer buildServer() {
-        McpToolDefinition sumTool = new McpToolDefinition('math.sum', 'Adds two integers.');
+        McpToolDefinition sumTool = new McpToolDefinition('math.sum', 'Adds two integers.', MinimalMcpExampleSumArguments.class);
         sumTool.inputSchema = new Map<String, Object>{
             'type' => 'object',
             'properties' => new Map<String, Object>{
@@ -13,7 +13,11 @@ public inherited sharing class MinimalMcpExample {
         McpResourceDefinition secretResource = new McpResourceDefinition('mcp://secret/one', 'Secret Integer One');
         secretResource.description = 'Returns constant 1.';
 
-        McpResourceTemplateDefinition secretTemplate = new McpResourceTemplateDefinition('secret-sum', 'mcp://templates/secret-sum{?value}');
+        McpResourceTemplateDefinition secretTemplate = new McpResourceTemplateDefinition(
+            'secret-sum',
+            'mcp://templates/secret-sum{?value}',
+            MinimalMcpExampleSecretTemplateArguments.class
+        );
         secretTemplate.description = 'Adds argument value with the secret resource integer.';
 
         return new McpServer('Minimal MCP Example', '1.0.0')
@@ -23,31 +27,51 @@ public inherited sharing class MinimalMcpExample {
     }
 
     public class SumTool implements McpToolExecutor {
-        public Object execute(Map<String, Object> arguments, McpRequestContext context) {
-            Integer a = Integer.valueOf(String.valueOf(arguments.get('a')));
-            Integer b = Integer.valueOf(String.valueOf(arguments.get('b')));
-            return new Map<String, Object>{ 'type' => 'text', 'text' => String.valueOf(a + b) };
+        public McpToolResult execute(JsonRpcParamsBase arguments, McpRequestContext context) {
+            MinimalMcpExampleSumArguments typed = (MinimalMcpExampleSumArguments) arguments;
+
+            McpToolResult result = new McpToolResult();
+            result.content.add(new McpTextContent(String.valueOf(typed.a + typed.b)));
+            return result;
         }
     }
 
     public class SecretResource implements McpResourceExecutor {
-        public Object read(String resourceUri, McpRequestContext context) {
-            return 1;
+        public McpResourceResult read(String resourceUri, McpRequestContext context) {
+            McpResourceResult result = new McpResourceResult();
+            result.contents.add(new McpResourceContentItem(resourceUri, '1', 'application/json'));
+            return result;
         }
     }
 
     public class SecretTemplate implements McpResourceTemplateExecutor {
-        public Object resolve(Map<String, Object> arguments, McpRequestContext context) {
-            Integer value = Integer.valueOf(String.valueOf(arguments.get('value')));
-            return new Map<String, Object>{
-                'contents' => new List<Object>{
-                    new Map<String, Object>{
-                        'uri' => 'mcp://templates/secret-sum',
-                        'mimeType' => 'application/json',
-                        'text' => String.valueOf(value + 1)
-                    }
-                }
-            };
+        public McpResourceResult resolve(JsonRpcParamsBase arguments, McpRequestContext context) {
+            MinimalMcpExampleSecretTemplateArguments typed = (MinimalMcpExampleSecretTemplateArguments) arguments;
+
+            McpResourceResult result = new McpResourceResult();
+            result.contents.add(new McpResourceContentItem('mcp://templates/secret-sum', String.valueOf(typed.value + 1), 'application/json'));
+            return result;
+        }
+    }
+}
+
+class MinimalMcpExampleSumArguments extends JsonRpcParamsBase {
+    public Integer a;
+    public Integer b;
+
+    public override void validate() {
+        if (this.a == null || this.b == null) {
+            throw new McpExceptions.InvalidParamsException('math.sum requires integer a and b.');
+        }
+    }
+}
+
+class MinimalMcpExampleSecretTemplateArguments extends JsonRpcParamsBase {
+    public Integer value;
+
+    public override void validate() {
+        if (this.value == null) {
+            throw new McpExceptions.InvalidParamsException('secret-sum requires integer value.');
         }
     }
 }

@@ -4,7 +4,8 @@ This example wires a full Apex REST endpoint using the library transport adapter
 
 ## What it demonstrates
 - Apex REST endpoint (`@RestResource`) delegating to `McpHttpTransport`.
-- Server registration for list endpoints and call/read/template handlers.
+- Server registration for list endpoints and typed call/read/template handlers.
+- Typed DTO arguments and results backing the MCP executor contracts.
 - MVP demo capabilities kept in examples only:
   - Tool: `math.sum`
   - Resource: `mcp://secret/one`

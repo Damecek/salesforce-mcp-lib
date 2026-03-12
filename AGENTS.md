@@ -26,6 +26,9 @@ Override is explicit: `npm run task:prepare:skip-org`.
 - Keep automation script-first and idempotent.
 - Keep public docs concise and executable.
 - Add/update tests with each behavior change.
+- Prefer class-first MCP contracts and typed DTOs.
+- Limit generic `Object` and `Map<String, Object>` usage to schema fragments and protocol edges.
+- Breaking API cleanup is acceptable when it removes unstable dynamic shapes.
 
 ## Release Hygiene
 - Initialize/check package with `npm run package:init`.

@@ -1,69 +1,78 @@
 @IsTest
 private class McpServerTest {
     private class SumTool implements McpToolExecutor {
-        public Object execute(Map<String, Object> arguments, McpRequestContext context) {
-            Integer a = Integer.valueOf(String.valueOf(arguments.get('a')));
-            Integer b = Integer.valueOf(String.valueOf(arguments.get('b')));
-            return new Map<String, Object>{
-                'type' => 'text',
-                'text' => String.valueOf(a + b)
-            };
+        public McpToolResult execute(JsonRpcParamsBase arguments, McpRequestContext context) {
+            McpServerTestSumArguments typed = (McpServerTestSumArguments) arguments;
+
+            McpToolResult result = new McpToolResult();
+            result.content.add(new McpTextContent(String.valueOf(typed.a + typed.b)));
+            return result;
         }
     }
 
     private class SecretResource implements McpResourceExecutor {
-        public Object read(String resourceUri, McpRequestContext context) {
-            return 1;
+        public McpResourceResult read(String resourceUri, McpRequestContext context) {
+            McpResourceResult result = new McpResourceResult();
+            result.contents.add(new McpResourceContentItem(resourceUri, '1', 'application/json'));
+            return result;
         }
     }
 
     private class SecretTemplate implements McpResourceTemplateExecutor {
-        public Object resolve(Map<String, Object> arguments, McpRequestContext context) {
-            Integer value = Integer.valueOf(String.valueOf(arguments.get('value')));
-            return new Map<String, Object>{
-                'contents' => new List<Object>{
-                    new Map<String, Object>{
-                        'uri' => 'mcp://templates/secret-sum',
-                        'mimeType' => 'application/json',
-                        'text' => String.valueOf(value + 1)
-                    }
-                }
-            };
+        public McpResourceResult resolve(JsonRpcParamsBase arguments, McpRequestContext context) {
+            McpServerTestSecretTemplateArguments typed = (McpServerTestSecretTemplateArguments) arguments;
+
+            McpResourceResult result = new McpResourceResult();
+            result.contents.add(new McpResourceContentItem('mcp://templates/secret-sum', String.valueOf(typed.value + 1), 'application/json'));
+            return result;
         }
     }
 
     private class PromptExample implements McpPromptExecutor {
-        public Object resolve(Map<String, Object> arguments, McpRequestContext context) {
-            String target = String.valueOf(arguments.get('target'));
-            return new Map<String, Object>{
-                'messages' => new List<Object>{
-                    new Map<String, Object>{
-                        'role' => 'user',
-                        'content' => new List<Object>{
-                            new Map<String, Object>{
-                                'type' => 'text',
-                                'text' => 'Hello ' + target
-                            }
-                        }
-                    }
-                }
-            };
+        public McpPromptResult resolve(JsonRpcParamsBase arguments, McpRequestContext context) {
+            McpServerTestPromptArguments typed = (McpServerTestPromptArguments) arguments;
+
+            McpPromptMessage message = new McpPromptMessage();
+            message.role = 'user';
+            message.content.add(new McpTextContent('Hello ' + typed.target));
+
+            McpPromptResult result = new McpPromptResult();
+            result.messages.add(message);
+            return result;
+        }
+    }
+
+    private class BrokenTool implements McpToolExecutor {
+        public McpToolResult execute(JsonRpcParamsBase arguments, McpRequestContext context) {
+            McpToolResult result = new McpToolResult();
+            result.content.add(new McpTextContent());
+            return result;
         }
     }
 
     private static McpServer buildServer() {
-        McpToolDefinition toolDef = new McpToolDefinition('math.sum', 'Sums two integers.');
+        McpToolDefinition toolDef = new McpToolDefinition('math.sum', 'Sums two integers.', McpServerTestSumArguments.class);
         toolDef.inputSchema = new Map<String, Object>{
             'type' => 'object'
         };
+        toolDef.annotations = new McpToolAnnotations();
+        toolDef.annotations.readOnlyHint = true;
+        toolDef.annotations.idempotentHint = true;
 
         McpResourceDefinition resourceDef = new McpResourceDefinition('mcp://secret/one', 'Secret One');
         resourceDef.description = 'Returns constant secret integer 1.';
 
-        McpResourceTemplateDefinition templateDef = new McpResourceTemplateDefinition('secret-sum', 'mcp://templates/secret-sum{?value}');
+        McpResourceTemplateDefinition templateDef = new McpResourceTemplateDefinition(
+            'secret-sum',
+            'mcp://templates/secret-sum{?value}',
+            McpServerTestSecretTemplateArguments.class
+        );
         templateDef.description = 'Adds provided value to secret resource value.';
 
-        McpPromptDefinition promptDef = new McpPromptDefinition('greet-target', 'Greets a named target.');
+        McpPromptDefinition promptDef = new McpPromptDefinition('greet-target', 'Greets a named target.', McpServerTestPromptArguments.class);
+        promptDef.arguments = new List<McpPromptArgumentDefinition>{
+            new McpPromptArgumentDefinition('target', 'Prompt target to greet.', true)
+        };
 
         McpServer server = new McpServer('Test MCP', '1.2.3');
         server
@@ -115,6 +124,8 @@ private class McpServerTest {
         System.assertEquals(1, tools.size());
         Map<String, Object> tool = (Map<String, Object>) tools[0];
         System.assertEquals('math.sum', tool.get('name'));
+        Map<String, Object> annotations = (Map<String, Object>) tool.get('annotations');
+        System.assertEquals(true, annotations.get('readOnlyHint'));
 
         Map<String, Object> resourcesResponse = (Map<String, Object>) listPayload[1];
         System.assertEquals(null, resourcesResponse.get('error'));
@@ -139,6 +150,8 @@ private class McpServerTest {
         System.assertEquals(1, prompts.size());
         Map<String, Object> prompt = (Map<String, Object>) prompts[0];
         System.assertEquals('greet-target', prompt.get('name'));
+        List<Object> promptArguments = (List<Object>) prompt.get('arguments');
+        System.assertEquals(1, promptArguments.size());
     }
 
     @IsTest
@@ -211,7 +224,6 @@ private class McpServerTest {
         Map<String, Object> promptResponse = (Map<String, Object>) payload[3];
         System.assertEquals(null, promptResponse.get('error'));
         Map<String, Object> promptResult = (Map<String, Object>) promptResponse.get('result');
-        System.assertEquals(false, promptResult.containsKey('value'));
         List<Object> messages = (List<Object>) promptResult.get('messages');
         Map<String, Object> message = (Map<String, Object>) messages[0];
         List<Object> promptContent = (List<Object>) message.get('content');
@@ -281,6 +293,27 @@ private class McpServerTest {
             Map<String, Object> error = (Map<String, Object>) response.get('error');
             System.assertEquals(-32602, error.get('code'));
         }
+    }
+
+    @IsTest
+    static void testInvalidTypedResultIsMappedToInternalError() {
+        McpToolDefinition toolDef = new McpToolDefinition('broken.tool', 'Returns invalid payload.');
+        McpServer server = new McpServer('Broken MCP', '1.0.0').registerTool(toolDef, new BrokenTool());
+
+        Map<String, Object> request = new Map<String, Object>{
+            'jsonrpc' => '2.0',
+            'id' => 41,
+            'method' => 'tools/call',
+            'params' => new Map<String, Object>{
+                'name' => 'broken.tool',
+                'arguments' => new Map<String, Object>()
+            }
+        };
+
+        JsonRpcExecutionResult result = server.execute(JSON.serialize(request));
+        Map<String, Object> payload = (Map<String, Object>) JSON.deserializeUntyped(result.toJson());
+        Map<String, Object> error = (Map<String, Object>) payload.get('error');
+        System.assertEquals(-32603, error.get('code'));
     }
 
     @IsTest
