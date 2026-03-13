@@ -29,6 +29,8 @@ Override is explicit: `npm run task:prepare:skip-org`.
 - Prefer class-first MCP contracts and typed DTOs.
 - Limit generic `Object` and `Map<String, Object>` usage to schema fragments and protocol edges.
 - Breaking API cleanup is acceptable when it removes unstable dynamic shapes.
+- MCP wire-contract fixes should prefer current spec compliance over backward compatibility.
+- Backward compatibility is not required for unstable or invalid MCP response shapes.
 
 ## Release Hygiene
 - Initialize/check package with `npm run package:init`.

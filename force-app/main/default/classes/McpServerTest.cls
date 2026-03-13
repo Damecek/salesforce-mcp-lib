@@ -32,12 +32,8 @@ private class McpServerTest {
         public McpPromptResult resolve(JsonRpcParamsBase arguments, McpRequestContext context) {
             McpServerTestPromptArguments typed = (McpServerTestPromptArguments) arguments;
 
-            McpPromptMessage message = new McpPromptMessage();
-            message.role = 'user';
-            message.content.add(new McpTextContent('Hello ' + typed.target));
-
             McpPromptResult result = new McpPromptResult();
-            result.messages.add(message);
+            result.messages.add(McpPromptMessage.userText('Hello ' + typed.target));
             return result;
         }
     }
@@ -60,12 +56,33 @@ private class McpServerTest {
 
     private class PromptWithoutArguments implements McpPromptExecutor {
         public McpPromptResult resolve(JsonRpcParamsBase arguments, McpRequestContext context) {
-            McpPromptMessage message = new McpPromptMessage();
-            message.role = 'user';
-            message.content.add(new McpTextContent('No args'));
+            McpPromptResult result = new McpPromptResult();
+            result.messages.add(McpPromptMessage.userText('No args'));
+            return result;
+        }
+    }
+
+    private class CustomerReplyDraftPrompt implements McpPromptExecutor {
+        public McpPromptResult resolve(JsonRpcParamsBase arguments, McpRequestContext context) {
+            String promptText =
+                'Draft a professional customer reply focused on current status, concrete next steps, and status clarity.' +
+                '\n\nUse this Opportunity and Opportunity Asset data to draft the reply:\n' +
+                '{\n' +
+                ' "opportunityAssets" : [ ],\n' +
+                ' "opportunity" : {\n' +
+                ' "Opportunity_Number_Carvago__c" : "65000",\n' +
+                ' "Carvago_Opportunity_ID__c" : "70e4eac1-9a34-40c5-8ecd-247a879ffd17",\n' +
+                ' "CloseDate" : "2023-07-27",\n' +
+                ' "Sub_Stage__c" : null,\n' +
+                ' "StageName" : "opp-closed-lost",\n' +
+                ' "Name" : "65000",\n' +
+                ' "Id" : "006AU00000Zq1AWYAZ"\n' +
+                ' }\n' +
+                '}';
 
             McpPromptResult result = new McpPromptResult();
-            result.messages.add(message);
+            result.description = 'Customer reply draft context for Opportunity 006AU00000Zq1AWYAZ';
+            result.messages.add(McpPromptMessage.userText(promptText));
             return result;
         }
     }
@@ -124,6 +141,19 @@ private class McpServerTest {
             .registerResource(resourceDef, new SecretResource())
             .registerResourceTemplate(templateDef, new SecretTemplate())
             .registerPrompt(promptDef, new PromptWithoutArguments());
+    }
+
+    private static McpServer buildCustomerReplyPromptServer() {
+        McpPromptDefinition promptDef = new McpPromptDefinition(
+            'opportunity.customer_reply_draft',
+            'Draft a customer reply from one Opportunity and its related assets.'
+        );
+        promptDef.arguments = new List<McpPromptArgumentDefinition>{
+            new McpPromptArgumentDefinition('opportunityId', 'Salesforce Opportunity Id.', true)
+        };
+
+        return new McpServer('Customer Reply MCP', '1.0.0')
+            .registerPrompt(promptDef, new CustomerReplyDraftPrompt());
     }
 
     @IsTest
@@ -275,9 +305,10 @@ private class McpServerTest {
         Map<String, Object> promptResult = (Map<String, Object>) promptResponse.get('result');
         List<Object> messages = (List<Object>) promptResult.get('messages');
         Map<String, Object> message = (Map<String, Object>) messages[0];
-        List<Object> promptContent = (List<Object>) message.get('content');
-        Map<String, Object> promptContentItem = (Map<String, Object>) promptContent[0];
-        System.assertEquals('Hello agent', promptContentItem.get('text'));
+        Map<String, Object> promptContent = (Map<String, Object>) message.get('content');
+        System.assertEquals('user', message.get('role'));
+        System.assertEquals('text', promptContent.get('type'));
+        System.assertEquals('Hello agent', promptContent.get('text'));
     }
 
     @IsTest
@@ -416,6 +447,86 @@ private class McpServerTest {
         Map<String, Object> promptsResult = (Map<String, Object>) ((Map<String, Object>) payload[2]).get('result');
         Map<String, Object> prompt = (Map<String, Object>) ((List<Object>) promptsResult.get('prompts'))[0];
         System.assertEquals(false, prompt.containsKey('arguments'));
+    }
+
+    @IsTest
+    static void testPromptMessageRejectsSystemRole() {
+        McpPromptMessage message = new McpPromptMessage('system', new McpTextContent('Hidden instruction'));
+
+        try {
+            message.validate();
+            System.assert(false, 'Expected system prompt role validation to fail.');
+        } catch (Exception ex) {
+            System.assert(ex.getMessage().contains('Prompt message role must be user or assistant.'));
+        }
+    }
+
+    @IsTest
+    static void testPromptsGetSerializesContentAsObject() {
+        McpServer server = buildSparseListServer();
+
+        Map<String, Object> request = new Map<String, Object>{
+            'jsonrpc' => '2.0',
+            'id' => 71,
+            'method' => 'prompts/get',
+            'params' => new Map<String, Object>{
+                'name' => 'no-arg-prompt',
+                'arguments' => new Map<String, Object>()
+            }
+        };
+
+        JsonRpcExecutionResult result = server.execute(JSON.serialize(request));
+        Map<String, Object> payload = (Map<String, Object>) JSON.deserializeUntyped(result.toJson());
+        Map<String, Object> responseResult = (Map<String, Object>) payload.get('result');
+        Map<String, Object> message = (Map<String, Object>) ((List<Object>) responseResult.get('messages'))[0];
+
+        System.assert(message.get('content') instanceof Map<String, Object>);
+        System.assertEquals(false, message.get('content') instanceof List<Object>);
+
+        Map<String, Object> content = (Map<String, Object>) message.get('content');
+        System.assertEquals('user', message.get('role'));
+        System.assertEquals('text', content.get('type'));
+        System.assertEquals('No args', content.get('text'));
+    }
+
+    @IsTest
+    static void testCustomerReplyDraftPromptUsesSingleUserMessage() {
+        McpServer server = buildCustomerReplyPromptServer();
+
+        Map<String, Object> request = new Map<String, Object>{
+            'jsonrpc' => '2.0',
+            'id' => 72,
+            'method' => 'prompts/get',
+            'params' => new Map<String, Object>{
+                'name' => 'opportunity.customer_reply_draft',
+                'arguments' => new Map<String, Object>{
+                    'opportunityId' => '006AU00000Zq1AWYAZ'
+                }
+            }
+        };
+
+        JsonRpcExecutionResult result = server.execute(JSON.serialize(request));
+        Map<String, Object> payload = (Map<String, Object>) JSON.deserializeUntyped(result.toJson());
+        Map<String, Object> responseResult = (Map<String, Object>) payload.get('result');
+
+        System.assertEquals(
+            'Customer reply draft context for Opportunity 006AU00000Zq1AWYAZ',
+            responseResult.get('description')
+        );
+
+        List<Object> messages = (List<Object>) responseResult.get('messages');
+        System.assertEquals(1, messages.size());
+
+        Map<String, Object> message = (Map<String, Object>) messages[0];
+        Map<String, Object> content = (Map<String, Object>) message.get('content');
+        String text = (String) content.get('text');
+
+        System.assertEquals('user', message.get('role'));
+        System.assertEquals('text', content.get('type'));
+        System.assert(text.contains('Draft a professional customer reply focused on current status'));
+        System.assert(text.contains('Use this Opportunity and Opportunity Asset data to draft the reply:'));
+        System.assert(text.contains('"Id" : "006AU00000Zq1AWYAZ"'));
+        System.assertEquals(false, text.contains('"role":"system"'));
     }
 
     @IsTest
