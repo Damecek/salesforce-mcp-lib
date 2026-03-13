@@ -40,12 +40,7 @@ public inherited sharing class McpHttpTransport {
 
         String requestJson = request.requestBody == null ? null : request.requestBody.toString();
 
-        JsonRpcServiceRuntimeOptions effectiveOptions = options == null ? new JsonRpcServiceRuntimeOptions() : options;
-        if (effectiveOptions.exceptionMapper == null) {
-            effectiveOptions.exceptionMapper = new McpJsonRpcExceptionMapper();
-        }
-
-        JsonRpcExecutionResult executionResult = JsonRpcServiceRuntime.execute(requestJson, server.toJsonRpcModule(), effectiveOptions);
+        JsonRpcExecutionResult executionResult = server.execute(requestJson, options);
 
         response.addHeader('Content-Type', 'application/json');
         if (!executionResult.hasResponse) {

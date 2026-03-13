@@ -2,14 +2,25 @@
  * @description JSON-RPC result DTO for resources/list.
  */
 public inherited sharing class McpResourcesListResult extends JsonRpcResultBase {
-    public List<McpResourceDefinition> resources = new List<McpResourceDefinition>();
+    public List<McpListedResource> resources = new List<McpListedResource>();
 
     public override void validate() {
-        for (McpResourceDefinition definition : this.resources) {
+        for (McpListedResource definition : this.resources) {
             if (definition == null) {
                 throw new McpInvalidParamsException('Resource definition cannot be null.');
             }
             definition.validate();
         }
+    }
+
+    public Map<String, Object> toWire() {
+        List<Object> wireResources = new List<Object>();
+        for (McpListedResource definition : this.resources) {
+            wireResources.add(definition.toWire());
+        }
+
+        return new Map<String, Object>{
+            'resources' => wireResources
+        };
     }
 }

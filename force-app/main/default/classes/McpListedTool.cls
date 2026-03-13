@@ -4,7 +4,8 @@
 public inherited sharing class McpListedTool {
     public String name;
     public String description;
-    public McpToolAnnotations annotations;
+    public String inputSchemaJson;
+    public McpToolAnnotationsWire annotations;
 
     public McpListedTool() {
     }
@@ -16,12 +17,36 @@ public inherited sharing class McpListedTool {
 
         this.name = source.name;
         this.description = source.description;
-        this.annotations = source.annotations;
+        this.inputSchemaJson = JSON.serialize(source.listedInputSchema());
+        this.annotations = source.annotations == null ? null : new McpToolAnnotationsWire(source.annotations);
     }
 
     public void validate() {
         if (String.isBlank(this.name)) {
             throw new McpInvalidParamsException('Tool definition name is required.');
         }
+
+        if (String.isBlank(this.inputSchemaJson)) {
+            throw new McpInvalidParamsException('Tool definition inputSchema is required.');
+        }
+    }
+
+    public Map<String, Object> toWire() {
+        this.validate();
+
+        Map<String, Object> wire = new Map<String, Object>{
+            'name' => this.name,
+            'inputSchema' => JSON.deserializeUntyped(this.inputSchemaJson)
+        };
+
+        if (!String.isBlank(this.description)) {
+            wire.put('description', this.description);
+        }
+
+        if (this.annotations != null && this.annotations.hasValues()) {
+            wire.put('annotations', this.annotations.toWire());
+        }
+
+        return wire;
     }
 }

@@ -116,7 +116,9 @@ public inherited sharing class McpJsonRpcModuleBuilder extends JsonRpcModuleBuil
 
         public override JsonRpcResultBase invoke(JsonRpcParamsBase params, JsonRpcInvocationContext context) {
             McpResourcesListResult result = new McpResourcesListResult();
-            result.resources.addAll(this.server.listResources());
+            for (McpResourceDefinition definition : this.server.listResources()) {
+                result.resources.add(new McpListedResource(definition));
+            }
             return result;
         }
     }

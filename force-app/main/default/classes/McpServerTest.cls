@@ -50,6 +50,26 @@ private class McpServerTest {
         }
     }
 
+    private class PingTool implements McpToolExecutor {
+        public McpToolResult execute(JsonRpcParamsBase arguments, McpRequestContext context) {
+            McpToolResult result = new McpToolResult();
+            result.content.add(new McpTextContent('pong'));
+            return result;
+        }
+    }
+
+    private class PromptWithoutArguments implements McpPromptExecutor {
+        public McpPromptResult resolve(JsonRpcParamsBase arguments, McpRequestContext context) {
+            McpPromptMessage message = new McpPromptMessage();
+            message.role = 'user';
+            message.content.add(new McpTextContent('No args'));
+
+            McpPromptResult result = new McpPromptResult();
+            result.messages.add(message);
+            return result;
+        }
+    }
+
     private static McpServer buildServer() {
         McpToolDefinition toolDef = new McpToolDefinition('math.sum', 'Sums two integers.', McpServerTestSumArguments.class);
         toolDef.inputSchema = new Map<String, Object>{
@@ -82,6 +102,28 @@ private class McpServerTest {
             .registerPrompt(promptDef, new PromptExample());
 
         return server;
+    }
+
+    private static McpServer buildSparseListServer() {
+        McpToolDefinition toolDef = new McpToolDefinition('ping.tool', 'Returns pong.');
+        toolDef.annotations = new McpToolAnnotations();
+        toolDef.annotations.readOnlyHint = true;
+        toolDef.annotations.openWorldHint = false;
+
+        McpResourceDefinition resourceDef = new McpResourceDefinition('mcp://sparse/resource', 'Sparse Resource');
+
+        McpResourceTemplateDefinition templateDef = new McpResourceTemplateDefinition(
+            'sparse-template',
+            'mcp://templates/sparse{?value}'
+        );
+
+        McpPromptDefinition promptDef = new McpPromptDefinition('no-arg-prompt', 'Prompt without arguments.');
+
+        return new McpServer('Sparse MCP', '1.0.0')
+            .registerTool(toolDef, new PingTool())
+            .registerResource(resourceDef, new SecretResource())
+            .registerResourceTemplate(templateDef, new SecretTemplate())
+            .registerPrompt(promptDef, new PromptWithoutArguments());
     }
 
     @IsTest
@@ -124,8 +166,13 @@ private class McpServerTest {
         System.assertEquals(1, tools.size());
         Map<String, Object> tool = (Map<String, Object>) tools[0];
         System.assertEquals('math.sum', tool.get('name'));
+        Map<String, Object> inputSchema = (Map<String, Object>) tool.get('inputSchema');
+        System.assertEquals('object', inputSchema.get('type'));
         Map<String, Object> annotations = (Map<String, Object>) tool.get('annotations');
         System.assertEquals(true, annotations.get('readOnlyHint'));
+        System.assertEquals(true, annotations.get('idempotentHint'));
+        System.assertEquals(false, annotations.containsKey('destructiveHint'));
+        System.assertEquals(false, annotations.containsKey('openWorldHint'));
 
         Map<String, Object> resourcesResponse = (Map<String, Object>) listPayload[1];
         System.assertEquals(null, resourcesResponse.get('error'));
@@ -134,6 +181,7 @@ private class McpServerTest {
         System.assertEquals(1, resources.size());
         Map<String, Object> resource = (Map<String, Object>) resources[0];
         System.assertEquals('mcp://secret/one', resource.get('uri'));
+        System.assertEquals(false, resource.containsKey('mimeType'));
 
         Map<String, Object> templatesResponse = (Map<String, Object>) listPayload[2];
         System.assertEquals(null, templatesResponse.get('error'));
@@ -201,6 +249,7 @@ private class McpServerTest {
         Map<String, Object> toolResponse = (Map<String, Object>) payload[0];
         System.assertEquals(null, toolResponse.get('error'));
         Map<String, Object> toolResult = (Map<String, Object>) toolResponse.get('result');
+        System.assertEquals(false, toolResult.get('isError'));
         List<Object> content = (List<Object>) toolResult.get('content');
         Map<String, Object> contentItem = (Map<String, Object>) content[0];
         System.assertEquals('5', contentItem.get('text'));
@@ -314,6 +363,59 @@ private class McpServerTest {
         Map<String, Object> payload = (Map<String, Object>) JSON.deserializeUntyped(result.toJson());
         Map<String, Object> error = (Map<String, Object>) payload.get('error');
         System.assertEquals(-32603, error.get('code'));
+    }
+
+    @IsTest
+    static void testToolsListUsesDefaultSchemaForNoArgTool() {
+        McpServer server = buildSparseListServer();
+
+        Map<String, Object> request = new Map<String, Object>{
+            'jsonrpc' => '2.0',
+            'id' => 51,
+            'method' => 'tools/list',
+            'params' => new Map<String, Object>()
+        };
+
+        JsonRpcExecutionResult result = server.execute(JSON.serialize(request));
+        Map<String, Object> payload = (Map<String, Object>) JSON.deserializeUntyped(result.toJson());
+        Map<String, Object> responseResult = (Map<String, Object>) payload.get('result');
+        List<Object> tools = (List<Object>) responseResult.get('tools');
+        Map<String, Object> tool = (Map<String, Object>) tools[0];
+        Map<String, Object> inputSchema = (Map<String, Object>) tool.get('inputSchema');
+        Map<String, Object> annotations = (Map<String, Object>) tool.get('annotations');
+
+        System.assertEquals('ping.tool', tool.get('name'));
+        System.assertEquals('object', inputSchema.get('type'));
+        System.assertEquals(false, inputSchema.get('additionalProperties'));
+        System.assertEquals(true, annotations.get('readOnlyHint'));
+        System.assertEquals(false, annotations.get('openWorldHint'));
+    }
+
+    @IsTest
+    static void testSparseListResponsesOmitNullOptionalFields() {
+        McpServer server = buildSparseListServer();
+
+        List<Map<String, Object>> listCalls = new List<Map<String, Object>>{
+            new Map<String, Object>{ 'jsonrpc' => '2.0', 'id' => 61, 'method' => 'resources/list', 'params' => new Map<String, Object>() },
+            new Map<String, Object>{ 'jsonrpc' => '2.0', 'id' => 62, 'method' => 'resources/templates/list', 'params' => new Map<String, Object>() },
+            new Map<String, Object>{ 'jsonrpc' => '2.0', 'id' => 63, 'method' => 'prompts/list', 'params' => new Map<String, Object>() }
+        };
+
+        JsonRpcExecutionResult result = server.execute(JSON.serialize(listCalls));
+        List<Object> payload = (List<Object>) JSON.deserializeUntyped(result.toJson());
+
+        Map<String, Object> resourcesResult = (Map<String, Object>) ((Map<String, Object>) payload[0]).get('result');
+        Map<String, Object> resource = (Map<String, Object>) ((List<Object>) resourcesResult.get('resources'))[0];
+        System.assertEquals(false, resource.containsKey('description'));
+        System.assertEquals(false, resource.containsKey('mimeType'));
+
+        Map<String, Object> templatesResult = (Map<String, Object>) ((Map<String, Object>) payload[1]).get('result');
+        Map<String, Object> template = (Map<String, Object>) ((List<Object>) templatesResult.get('resourceTemplates'))[0];
+        System.assertEquals(false, template.containsKey('description'));
+
+        Map<String, Object> promptsResult = (Map<String, Object>) ((Map<String, Object>) payload[2]).get('result');
+        Map<String, Object> prompt = (Map<String, Object>) ((List<Object>) promptsResult.get('prompts'))[0];
+        System.assertEquals(false, prompt.containsKey('arguments'));
     }
 
     @IsTest

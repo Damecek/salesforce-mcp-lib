@@ -12,4 +12,15 @@ public inherited sharing class McpPromptsListResult extends JsonRpcResultBase {
             definition.validate();
         }
     }
+
+    public Map<String, Object> toWire() {
+        List<Object> wirePrompts = new List<Object>();
+        for (McpListedPrompt definition : this.prompts) {
+            wirePrompts.add(definition.toWire());
+        }
+
+        return new Map<String, Object>{
+            'prompts' => wirePrompts
+        };
+    }
 }

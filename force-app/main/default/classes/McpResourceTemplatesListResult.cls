@@ -12,4 +12,15 @@ public inherited sharing class McpResourceTemplatesListResult extends JsonRpcRes
             definition.validate();
         }
     }
+
+    public Map<String, Object> toWire() {
+        List<Object> wireTemplates = new List<Object>();
+        for (McpListedResourceTemplate definition : this.resourceTemplates) {
+            wireTemplates.add(definition.toWire());
+        }
+
+        return new Map<String, Object>{
+            'resourceTemplates' => wireTemplates
+        };
+    }
 }

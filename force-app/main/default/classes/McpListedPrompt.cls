@@ -35,4 +35,22 @@ public inherited sharing class McpListedPrompt {
             }
         }
     }
+
+    public Map<String, Object> toWire() {
+        this.validate();
+
+        Map<String, Object> wire = new Map<String, Object>{
+            'name' => this.name
+        };
+
+        if (!String.isBlank(this.description)) {
+            wire.put('description', this.description);
+        }
+
+        if (this.arguments != null) {
+            wire.put('arguments', this.arguments);
+        }
+
+        return wire;
+    }
 }

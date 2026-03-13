@@ -28,4 +28,19 @@ public inherited sharing class McpListedResourceTemplate {
             throw new McpInvalidParamsException('Resource template uriTemplate is required.');
         }
     }
+
+    public Map<String, Object> toWire() {
+        this.validate();
+
+        Map<String, Object> wire = new Map<String, Object>{
+            'name' => this.name,
+            'uriTemplate' => this.uriTemplate
+        };
+
+        if (!String.isBlank(this.description)) {
+            wire.put('description', this.description);
+        }
+
+        return wire;
+    }
 }

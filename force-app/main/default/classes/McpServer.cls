@@ -301,9 +301,24 @@ public inherited sharing class McpServer {
      * @return JSON-RPC runtime execution result.
      */
     public JsonRpcExecutionResult execute(String requestJson) {
-        JsonRpcServiceRuntimeOptions options = new JsonRpcServiceRuntimeOptions();
-        options.exceptionMapper = new McpJsonRpcExceptionMapper();
-        return JsonRpcServiceRuntime.execute(requestJson, this.toJsonRpcModule(), options);
+        return execute(requestJson, null);
+    }
+
+    /**
+     * @description Executes raw JSON-RPC payload against the current MCP registration state with explicit runtime options.
+     * @param requestJson JSON-RPC request JSON.
+     * @param options Runtime options; when null defaults are used.
+     * @return JSON-RPC runtime execution result.
+     */
+    public JsonRpcExecutionResult execute(String requestJson, JsonRpcServiceRuntimeOptions options) {
+        JsonRpcServiceRuntimeOptions effectiveOptions = options == null ? new JsonRpcServiceRuntimeOptions() : options;
+        if (effectiveOptions.exceptionMapper == null) {
+            effectiveOptions.exceptionMapper = new McpJsonRpcExceptionMapper();
+        }
+
+        JsonRpcExecutionResult executionResult = JsonRpcServiceRuntime.execute(requestJson, this.toJsonRpcModule(), effectiveOptions);
+        normalizeExecutionResult(executionResult);
+        return executionResult;
     }
 
     private static JsonRpcParamsBase deserializeArguments(Map<String, Object> rawArguments, Type argumentsType, String operationName) {
@@ -352,6 +367,28 @@ public inherited sharing class McpServer {
             result.validate();
         } catch (Exception ex) {
             throw new McpExceptions.InternalException(errorMessage);
+        }
+    }
+
+    private static void normalizeExecutionResult(JsonRpcExecutionResult executionResult) {
+        if (executionResult == null || executionResult.responses == null) {
+            return;
+        }
+
+        for (JsonRpcResponse response : executionResult.responses) {
+            if (response == null || !response.hasResult || response.result == null) {
+                continue;
+            }
+
+            if (response.result instanceof McpToolsListResult) {
+                response.result = ((McpToolsListResult) response.result).toWire();
+            } else if (response.result instanceof McpResourcesListResult) {
+                response.result = ((McpResourcesListResult) response.result).toWire();
+            } else if (response.result instanceof McpResourceTemplatesListResult) {
+                response.result = ((McpResourceTemplatesListResult) response.result).toWire();
+            } else if (response.result instanceof McpPromptsListResult) {
+                response.result = ((McpPromptsListResult) response.result).toWire();
+            }
         }
     }
 

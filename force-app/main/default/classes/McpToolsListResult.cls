@@ -12,4 +12,15 @@ public inherited sharing class McpToolsListResult extends JsonRpcResultBase {
             definition.validate();
         }
     }
+
+    public Map<String, Object> toWire() {
+        List<Object> wireTools = new List<Object>();
+        for (McpListedTool definition : this.tools) {
+            wireTools.add(definition.toWire());
+        }
+
+        return new Map<String, Object>{
+            'tools' => wireTools
+        };
+    }
 }
