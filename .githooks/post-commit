@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+if ! ./scripts/org-delete.sh; then
+  echo "post-commit scratch cleanup failed" >&2
+fi

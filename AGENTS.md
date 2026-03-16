@@ -34,5 +34,6 @@ Override is explicit: `npm run task:prepare:skip-org`.
 
 ## Release Hygiene
 - Initialize/check package with `npm run package:init`.
+- Before `npm run release:version`, run `npm run org:test` and `npm run harness:inspect:smoke` against the scratch org you intend to version from.
 - Version with `npm run release:version`.
 - Promote/install only with explicit `PACKAGE_VERSION_ID`.

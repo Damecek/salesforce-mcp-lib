@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "salesforce-harness": {
+      "type": "streamable-http",
+      "url": "__SERVER_URL__"
+    }
+  }
+}
