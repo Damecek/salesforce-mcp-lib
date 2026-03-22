@@ -22,6 +22,18 @@ Not allowed by default:
 
 Override is explicit: `npm run task:prepare:skip-org`.
 
+## Source Layout
+- `force-app/main/json-rpc/classes` — in-repo JSON-RPC 2.0 core (no external dependency).
+- `force-app/main/mcp/classes` — MCP `2025-11-25` protocol layer.
+- Both directories are deployed as one package at `force-app`.
+- Scratch-only HTTP endpoints live in `dev/mcp-harness`, outside the package.
+
+## Context7 Protocol Sources
+When doing protocol work, always fetch current docs instead of relying on training data:
+- JSON-RPC 2.0 spec — resolve via Context7 (`jsonrpc.org` or similar)
+- MCP spec `2025-11-25` — resolve via Context7 (`websites/modelcontextprotocol_io_specification_2025-11-25`)
+- MCP Inspector — resolve via Context7 for latest wire validation behavior
+
 ## Engineering Rules
 - Keep automation script-first and idempotent.
 - Keep public docs concise and executable.
@@ -31,6 +43,7 @@ Override is explicit: `npm run task:prepare:skip-org`.
 - Breaking API cleanup is acceptable when it removes unstable dynamic shapes.
 - MCP wire-contract fixes should prefer current spec compliance over backward compatibility.
 - Backward compatibility is not required for unstable or invalid MCP response shapes.
+- The external `ApexJsonRpc` package dependency has been removed; all JSON-RPC primitives are in-repo.
 
 ## Release Hygiene
 - Initialize/check package with `npm run package:init`.

@@ -1,18 +1,13 @@
 {
   "packageDirectories": [
     {
-      "versionName": "ver 1.0.1",
-      "versionNumber": "1.0.1.NEXT",
+      "versionName": "MCP 2025-11-25 in-repo JSON-RPC",
+      "versionNumber": "1.1.0.NEXT",
       "path": "force-app",
       "default": true,
       "package": "SalesforceMcpLib",
-      "versionDescription": "Generic Salesforce MCP library baseline",
-      "definitionFile": "config/package-version-def.json",
-      "dependencies": [
-        {
-          "package": "04tfj000000GCRpAAO"
-        }
-      ]
+      "versionDescription": "In-repo JSON-RPC 2.0 core with MCP 2025-11-25 layer",
+      "definitionFile": "config/package-version-def.json"
     }
   ],
   "name": "salesforce-mcp-lib",
