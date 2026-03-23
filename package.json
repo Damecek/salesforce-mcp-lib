@@ -2,7 +2,7 @@
   "name": "salesforce-mcp-lib-workspace",
   "version": "1.0.1",
   "private": true,
-  "description": "Salesforce 2GP template repository",
+  "description": "Salesforce 2GP MCP library with in-repo JSON-RPC 2.0 core",
   "workspaces": [
     "packages/*"
   ],
@@ -22,7 +22,6 @@
     "task:prepare": "./scripts/task-prepare.sh",
     "task:prepare:skip-org": "./scripts/task-prepare-skip-org.sh",
     "validate": "./scripts/validate.sh",
-    "ref:apexjsonrpc": "./scripts/apexjsonrpc-reference.sh",
     "package:init": "./scripts/package-init.sh",
     "release:version": "./scripts/release-version.sh",
     "release:promote": "./scripts/release-promote.sh",
