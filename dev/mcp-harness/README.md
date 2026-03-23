@@ -1,6 +1,6 @@
 # Scratch-Only MCP Harness
 
-This directory contains a deployable Apex MCP server harness used for external validation with `@modelcontextprotocol/inspector`.
+This directory contains deployable Apex MCP server harness endpoints used for external validation of remote MCP access patterns.
 
 It is intentionally kept outside `force-app/` so it is not part of the 2GP package source.
 
@@ -13,5 +13,10 @@ It is intentionally kept outside `force-app/` so it is not part of the 2GP packa
    - `npm run org:deploy`
 2. Deploy harness source:
    - `npm run harness:deploy`
-3. Run Inspector smoke checks:
+3. Run smoke checks:
    - `npm run harness:inspect:smoke`
+   - `npm run harness:proxy:smoke`
+
+## Endpoints
+- `/services/apexrest/mcp`
+- `/services/apexrest/opportunity/mcp`

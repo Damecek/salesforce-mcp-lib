@@ -18,9 +18,12 @@ Observed package behavior during implementation:
 - `npm run harness:url`
 - `npm run harness:token`
 - `npm run harness:inspect:smoke`
+- `npm run harness:proxy:smoke`
 
 ## Smoke strategy
 `harness:inspect:smoke` starts the Inspector proxy locally, opens a `streamable-http` session to the Salesforce endpoint, forwards `Authorization: Bearer <sf token>`, and then executes MCP JSON-RPC requests through the proxy session.
+
+`harness:proxy:smoke` uses the publishable `salesforce-mcp-lib` stdio bridge instead. It expects `SF_CLIENT_ID` and `SF_CLIENT_SECRET` to be configured for a Connected App that supports the Salesforce client credentials flow.
 
 ## Covered MCP methods
 - `initialize`

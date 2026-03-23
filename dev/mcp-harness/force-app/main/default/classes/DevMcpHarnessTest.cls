@@ -1,16 +1,24 @@
 @IsTest
 private class DevMcpHarnessTest {
     private static Map<String, Object> invoke(Map<String, Object> requestPayload) {
+        return invoke(requestPayload, '/services/apexrest/mcp');
+    }
+
+    private static Map<String, Object> invoke(Map<String, Object> requestPayload, String requestUri) {
         RestRequest request = new RestRequest();
         request.httpMethod = 'POST';
-        request.requestURI = '/services/apexrest/mcp';
+        request.requestURI = requestUri;
         request.requestBody = Blob.valueOf(JSON.serialize(requestPayload));
 
         RestResponse response = new RestResponse();
         RestContext.request = request;
         RestContext.response = response;
 
-        DevMcpHarnessEndpoint.handlePost();
+        if (requestUri == '/services/apexrest/opportunity/mcp') {
+            DevMcpOpportunityHarnessEndpoint.handlePost();
+        } else {
+            DevMcpHarnessEndpoint.handlePost();
+        }
 
         System.assertEquals('application/json', response.headers.get('Content-Type'));
         System.assertEquals(200, response.statusCode);
@@ -194,6 +202,21 @@ private class DevMcpHarnessTest {
         Map<String, Object> error = (Map<String, Object>) payload.get('error');
         System.assertNotEquals(null, error);
         System.assertEquals(-32602, error.get('code'));
+    }
+
+    @IsTest
+    static void testNestedApexRestPathUsesSameHarness() {
+        Map<String, Object> payload = invoke(new Map<String, Object>{
+            'jsonrpc' => '2.0',
+            'id' => 12,
+            'method' => 'tools/call',
+            'params' => new Map<String, Object>{
+                'name' => 'math.sum',
+                'arguments' => new Map<String, Object>{ 'a' => 4, 'b' => 6 }
+            }
+        }, '/services/apexrest/opportunity/mcp');
+
+        assertSingleTextContent(payload, '10');
     }
 
     private static void assertSingleTextContent(Map<String, Object> payload, String expectedText) {

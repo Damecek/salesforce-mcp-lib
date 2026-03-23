@@ -1,8 +1,11 @@
 {
-  "name": "salesforce-mcp-lib",
+  "name": "salesforce-mcp-lib-workspace",
   "version": "1.0.1",
   "private": true,
   "description": "Salesforce 2GP template repository",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "org:fresh": "./scripts/org-fresh.sh",
     "org:delete": "./scripts/org-delete.sh",
@@ -13,6 +16,9 @@
     "harness:url": "./scripts/harness-url.sh",
     "harness:token": "./scripts/harness-token.sh",
     "harness:inspect:smoke": "./scripts/harness-inspect-smoke.sh",
+    "harness:proxy:smoke": "./scripts/harness-proxy-smoke.sh",
+    "codex:mcp:smoke": "./scripts/codex-mcp-smoke.sh",
+    "eca:validate": "./scripts/external-client-app-validate.sh",
     "task:prepare": "./scripts/task-prepare.sh",
     "task:prepare:skip-org": "./scripts/task-prepare-skip-org.sh",
     "validate": "./scripts/validate.sh",
@@ -20,6 +26,9 @@
     "package:init": "./scripts/package-init.sh",
     "release:version": "./scripts/release-version.sh",
     "release:promote": "./scripts/release-promote.sh",
-    "release:install": "./scripts/release-install.sh"
+    "release:install": "./scripts/release-install.sh",
+    "build": "npm run build --workspace salesforce-mcp-lib",
+    "test": "npm run test --workspace salesforce-mcp-lib",
+    "smoke:cli": "npm run smoke --workspace salesforce-mcp-lib"
   }
 }

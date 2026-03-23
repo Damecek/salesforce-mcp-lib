@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExternalClientApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <contactEmail>support@example.com</contactEmail>
+    <description>Packageable external client app baseline for Salesforce MCP integrations.</description>
+    <distributionState>Packaged</distributionState>
+    <isProtected>false</isProtected>
+    <label>SalesforceMcpLib</label>
+    <orgScopedExternalApp>00DdL00000q1WdD:SalesforceMcpLib</orgScopedExternalApp>
+</ExternalClientApplication>

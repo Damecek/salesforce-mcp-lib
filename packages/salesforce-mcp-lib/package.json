@@ -1,0 +1,27 @@
+{
+  "name": "salesforce-mcp-lib",
+  "version": "1.0.1",
+  "description": "Local stdio bridge for Salesforce MCP endpoints using OAuth client credentials",
+  "type": "module",
+  "bin": {
+    "salesforce-mcp-lib": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsx --test tests/*.test.ts",
+    "smoke": "node dist/smoke.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.2"
+  }
+}
