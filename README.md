@@ -90,6 +90,54 @@ Optional overrides:
 - `EXPECTED_TOOL_NAME`
 - `CODEX_PROMPT`
 
+## Local Proxy Smoke Prerequisites
+The local proxy smoke flows are intentionally split between:
+- discoverable runtime facts that scripts can derive
+- manual local secrets that scripts cannot derive
+
+Discoverable facts:
+- target org instance URL from `npm run harness:url`
+- default MCP endpoint path `/services/apexrest/mcp`
+- supported override path via `MCP_PATH`
+
+Current endpoint shapes used in this repo:
+- `/services/apexrest/mcp`
+- `/services/apexrest/mcp/opportunity/`
+
+Manual local prerequisite:
+- `SF_CLIENT_ID`
+- `SF_CLIENT_SECRET`
+
+These two values are not discoverable from repo state or scratch-org deploy state alone. For now, local proxy/Codex smokes require one manual post-setup step in the target org:
+1. Open the installed or configured External Client App in Salesforce Setup.
+2. Enable the client credentials flow and assign the execution user if that setup is not already complete.
+3. Open the app's OAuth settings and retrieve the consumer key and consumer secret.
+4. Export them into your shell.
+
+Example:
+
+```bash
+export SF_CLIENT_ID='your-consumer-key'
+export SF_CLIENT_SECRET='your-consumer-secret'
+```
+
+Expected local sequence before proxy-based smoke runs:
+
+```bash
+npm run build
+npm run harness:url
+npm run harness:proxy:smoke
+npm run codex:mcp:smoke
+```
+
+For a non-default Apex REST endpoint, derive the URL with the supported override:
+
+```bash
+MCP_PATH=/services/apexrest/mcp/opportunity/ npm run harness:url
+```
+
+If `SF_CLIENT_ID` or `SF_CLIENT_SECRET` is missing, the supported behavior is to stop and complete the manual export step first.
+
 ## External Client App
 The 2GP source includes a packageable Salesforce External Client App baseline for the CLI/auth integration story.
 

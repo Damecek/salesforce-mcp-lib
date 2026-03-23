@@ -12,7 +12,13 @@ Observed package behavior during implementation:
 - the automated smoke script therefore uses the Inspector proxy server as the executable validation path
 
 ## Expected endpoint
-`https://<my-domain>.my.salesforce.com/services/apexrest/mcp`
+Use `npm run harness:url` as the source of truth for the target endpoint.
+
+Current endpoint shapes used in this repo:
+- `https://<my-domain>.my.salesforce.com/services/apexrest/mcp`
+- `https://<my-domain>.my.salesforce.com/services/apexrest/mcp/opportunity/`
+
+For non-default endpoints, override the path with `MCP_PATH` instead of hand-building the URL.
 
 ## Commands
 - `npm run harness:url`
@@ -24,6 +30,24 @@ Observed package behavior during implementation:
 `harness:inspect:smoke` starts the Inspector proxy locally, opens a `streamable-http` session to the Salesforce endpoint, forwards `Authorization: Bearer <sf token>`, and then executes MCP JSON-RPC requests through the proxy session.
 
 `harness:proxy:smoke` uses the publishable `salesforce-mcp-lib` stdio bridge instead. It expects `SF_CLIENT_ID` and `SF_CLIENT_SECRET` to be configured for a Connected App that supports the Salesforce client credentials flow.
+
+`harness:proxy:smoke` and `codex:mcp:smoke` are local-only flows today. Their client credentials are not discoverable from repo state or scratch-org deploy output, so the operator must retrieve and export them manually before running those commands.
+
+Manual local setup:
+
+```bash
+export SF_CLIENT_ID='your-consumer-key'
+export SF_CLIENT_SECRET='your-consumer-secret'
+```
+
+Suggested sequence:
+
+```bash
+npm run build
+npm run harness:url
+npm run harness:proxy:smoke
+npm run codex:mcp:smoke
+```
 
 ## Covered MCP methods
 - `initialize`

@@ -3,6 +3,7 @@ set -euo pipefail
 
 TARGET_ORG="${TARGET_ORG:-${ORG_ALIAS:-sf-mcp-lib-scratch}}"
 MCP_PATH="${MCP_PATH:-/services/apexrest/mcp}"
+export MCP_PATH
 
 sf org display --target-org "$TARGET_ORG" --json | node -e '
 const fs = require("fs");

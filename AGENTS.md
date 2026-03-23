@@ -45,6 +45,15 @@ When doing protocol work, always fetch current docs instead of relying on traini
 - Backward compatibility is not required for unstable or invalid MCP response shapes.
 - The external `ApexJsonRpc` package dependency has been removed; all JSON-RPC primitives are in-repo.
 
+## Local Smoke-Test Prerequisites
+- Treat `SF_CLIENT_ID` and `SF_CLIENT_SECRET` as manual local prerequisites for `npm run harness:proxy:smoke` and `npm run codex:mcp:smoke`.
+- Do not assume these secrets are discoverable from repo state, scratch-org deploy output, or package metadata.
+- Before attempting proxy/Codex smoke runs, first derive the MCP endpoint with `./scripts/harness-url.sh` and use `MCP_PATH` only when a non-default Apex REST endpoint is intended.
+- If `SF_CLIENT_ID` or `SF_CLIENT_SECRET` is missing, stop immediately and ask the user to complete the documented manual export step instead of retrying or investigating unrelated failures.
+- Supported local endpoint shapes currently used in this repo are:
+  - `/services/apexrest/mcp`
+  - `/services/apexrest/mcp/opportunity/`
+
 ## Release Hygiene
 - Initialize/check package with `npm run package:init`.
 - Before `npm run release:version`, run `npm run org:test` and `npm run harness:inspect:smoke` against the scratch org you intend to version from.

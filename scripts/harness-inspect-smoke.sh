@@ -5,6 +5,32 @@ TARGET_ORG="${TARGET_ORG:-${ORG_ALIAS:-sf-mcp-lib-scratch}}"
 INSPECTOR_PROXY_PORT="${INSPECTOR_PROXY_PORT:-6277}"
 INSPECTOR_CLIENT_PORT="${INSPECTOR_CLIENT_PORT:-6274}"
 
+pick_port() {
+  local preferred_port="$1"
+
+  if ! lsof -nP -iTCP:"$preferred_port" -sTCP:LISTEN >/dev/null 2>&1; then
+    printf '%s\n' "$preferred_port"
+    return 0
+  fi
+
+  node -e '
+    const net = require("net");
+    const server = net.createServer();
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        process.stderr.write("Failed to allocate a random port.\n");
+        process.exit(1);
+      }
+      process.stdout.write(String(address.port));
+      server.close();
+    });
+  '
+}
+
+INSPECTOR_PROXY_PORT="$(pick_port "$INSPECTOR_PROXY_PORT")"
+INSPECTOR_CLIENT_PORT="$(pick_port "$INSPECTOR_CLIENT_PORT")"
+
 SERVER_URL="$(./scripts/harness-url.sh)"
 ACCESS_TOKEN="$(./scripts/harness-token.sh)"
 ENCODED_SERVER_URL="$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$SERVER_URL")"
