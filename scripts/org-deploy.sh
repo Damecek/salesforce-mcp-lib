@@ -14,7 +14,7 @@ if [[ "$TARGET_INSTANCE_URL" == *".scratch.my.salesforce.com"* ]]; then
   while IFS= read -r SOURCE_DIR; do
     DEPLOY_ARGS+=(--source-dir "$SOURCE_DIR")
   done < <(
-    find force-app/main/default -mindepth 1 -maxdepth 1 -type d \
+    find force-app/main/mcp -mindepth 1 -maxdepth 1 -type d \
       ! -name externalClientApps \
       ! -name extlClntAppGlobalOauthSets \
       ! -name extlClntAppOauthSettings \
