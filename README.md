@@ -1,6 +1,6 @@
 # salesforce-mcp-lib
 
-AI-first Salesforce 2GP repository with a reusable Apex MCP library built on top of ApexJsonRpc.
+AI-first Salesforce 2GP repository with a reusable Apex MCP library and in-repo JSON-RPC 2.0 core.
 
 ## Scope
 - Script-first project operations.
@@ -13,7 +13,7 @@ Out of scope in package runtime:
 - Consumer-specific endpoint wiring.
 
 ## Design Principles
-- Follow ApexJsonRpc's current class-first API style.
+- Follow the repository's class-first JSON-RPC and MCP API style.
 - Prefer typed DTO classes for MCP arguments, results, and descriptors.
 - Keep `Object` and `Map<String, Object>` only at protocol boundaries or for free-form JSON schema fragments.
 - Treat examples as typed consumer patterns, not map-plumbing recipes.
@@ -23,19 +23,10 @@ Out of scope in package runtime:
 npm run task:prepare
 ```
 
-## ApexJsonRpc Local Reference Workflow
-Pin and inspect ApexJsonRpc locally before changing the library API surface.
+## JSON-RPC Origin
+For background, the original JSON-RPC implementation lives at [Damecek/salesforce-apex-json-rpc](https://github.com/Damecek/salesforce-apex-json-rpc).
 
-```bash
-npm run ref:apexjsonrpc
-```
-
-Defaults:
-- `TARGET_ORG=sf-mcp-lib-scratch`
-- `PACKAGE_VERSION_ID=04tfj000000GCRpAAO`
-- `REF_DIR=/tmp/apex-json-rpc-ref`
-
-The script installs the package and retrieves source into `/tmp/...` for local reference only. Never commit retrieved package source.
+For simplicity, the latest version used by this package has been moved into [`force-app/main/json-rpc`](/Users/adam/IdeaProjects/salesforce-mcp-lib/force-app/main/json-rpc) and is maintained locally together with the MCP layer.
 
 ## Commands
 - `npm run org:fresh`
@@ -46,7 +37,6 @@ The script installs the package and retrieves source into `/tmp/...` for local r
 - `npm run test`
 - `npm run smoke:cli`
 - `npm run codex:mcp:smoke`
-- `npm run ref:apexjsonrpc`
 - `npm run package:init`
 - `npm run release:version`
 - `npm run release:promote`

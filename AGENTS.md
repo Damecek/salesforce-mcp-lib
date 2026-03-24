@@ -43,7 +43,7 @@ When doing protocol work, always fetch current docs instead of relying on traini
 - Breaking API cleanup is acceptable when it removes unstable dynamic shapes.
 - MCP wire-contract fixes should prefer current spec compliance over backward compatibility.
 - Backward compatibility is not required for unstable or invalid MCP response shapes.
-- The external `ApexJsonRpc` package dependency has been removed; all JSON-RPC primitives are in-repo.
+- The external JSON-RPC package dependency has been removed; all JSON-RPC primitives are in-repo.
 
 ## Local Smoke-Test Prerequisites
 - Treat `SF_CLIENT_ID` and `SF_CLIENT_SECRET` as manual local prerequisites for `npm run harness:proxy:smoke` and `npm run codex:mcp:smoke`.
