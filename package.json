@@ -1,6 +1,6 @@
 {
   "name": "salesforce-mcp-lib-workspace",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Salesforce 2GP MCP library with in-repo JSON-RPC 2.0 core",
   "workspaces": [

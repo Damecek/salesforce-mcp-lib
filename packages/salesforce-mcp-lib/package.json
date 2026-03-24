@@ -1,7 +1,24 @@
 {
   "name": "salesforce-mcp-lib",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Local stdio bridge for Salesforce MCP endpoints using OAuth client credentials",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/damecek/salesforce-mcp-lib.git",
+    "directory": "packages/salesforce-mcp-lib"
+  },
+  "homepage": "https://github.com/damecek/salesforce-mcp-lib#readme",
+  "bugs": {
+    "url": "https://github.com/damecek/salesforce-mcp-lib/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "salesforce",
+    "oauth",
+    "client-credentials"
+  ],
   "type": "module",
   "bin": {
     "salesforce-mcp-lib": "dist/index.js"
@@ -13,6 +30,9 @@
   ],
   "engines": {
     "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

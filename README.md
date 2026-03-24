@@ -59,7 +59,7 @@ Example:
 
 ```bash
 npx salesforce-mcp-lib \
-  --url https://<host>/services/apexrest/opportunity/mcp \
+  --url https://<host>/services/apexrest/mcp/opportunity/ \
   --client-id "$SF_CLIENT_ID" \
   --client-secret "$SF_CLIENT_SECRET"
 ```
