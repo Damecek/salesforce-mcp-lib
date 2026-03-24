@@ -32,7 +32,7 @@ private class DevMcpHarnessTest {
             'id' => 1,
             'method' => 'initialize',
             'params' => new Map<String, Object>{
-                'protocolVersion' => '2025-06-18',
+                'protocolVersion' => '2025-11-25',
                 'capabilities' => new Map<String, Object>(),
                 'clientInfo' => new Map<String, Object>{
                     'name' => 'inspector',
@@ -42,7 +42,7 @@ private class DevMcpHarnessTest {
         });
 
         Map<String, Object> initializeResult = (Map<String, Object>) initializePayload.get('result');
-        System.assertEquals('2025-06-18', initializeResult.get('protocolVersion'));
+        System.assertEquals('2025-11-25', initializeResult.get('protocolVersion'));
 
         Map<String, Object> toolsPayload = invoke(new Map<String, Object>{
             'jsonrpc' => '2.0',

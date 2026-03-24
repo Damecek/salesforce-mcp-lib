@@ -4,6 +4,7 @@ set -euo pipefail
 TARGET_ORG="${TARGET_ORG:-${ORG_ALIAS:-sf-mcp-lib-scratch}}"
 INSPECTOR_PROXY_PORT="${INSPECTOR_PROXY_PORT:-6277}"
 INSPECTOR_CLIENT_PORT="${INSPECTOR_CLIENT_PORT:-6274}"
+INSPECTOR_PROXY_HOST="${INSPECTOR_PROXY_HOST:-localhost}"
 
 pick_port() {
   local preferred_port="$1"
@@ -46,7 +47,7 @@ npx -y @modelcontextprotocol/inspector >"$INSPECTOR_LOG" 2>&1 &
 INSPECTOR_PID=$!
 
 for _ in $(seq 1 20); do
-  if curl -fsS "http://127.0.0.1:${INSPECTOR_PROXY_PORT}/health" >/dev/null 2>&1; then
+  if curl -fsS "http://${INSPECTOR_PROXY_HOST}:${INSPECTOR_PROXY_PORT}/health" >/dev/null 2>&1; then
     break
   fi
   sleep 1
@@ -56,7 +57,7 @@ SESSION_HEADERS="$TMP_DIR/session.headers"
 SESSION_BODY="$TMP_DIR/session.body"
 
 curl -sS -D "$SESSION_HEADERS" -o "$SESSION_BODY" \
-  -X POST "http://127.0.0.1:${INSPECTOR_PROXY_PORT}/mcp?transportType=streamable-http&url=${ENCODED_SERVER_URL}" \
+  -X POST "http://${INSPECTOR_PROXY_HOST}:${INSPECTOR_PROXY_PORT}/mcp?transportType=streamable-http&url=${ENCODED_SERVER_URL}" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H 'Accept: application/json, text/event-stream' \
   -H 'Content-Type: application/json' \
@@ -76,7 +77,7 @@ run_request() {
 
   echo "==> $label"
   curl -sS \
-    -X POST "http://127.0.0.1:${INSPECTOR_PROXY_PORT}/mcp" \
+    -X POST "http://${INSPECTOR_PROXY_HOST}:${INSPECTOR_PROXY_PORT}/mcp" \
     -H "Authorization: Bearer $ACCESS_TOKEN" \
     -H 'Accept: application/json, text/event-stream' \
     -H 'Content-Type: application/json' \

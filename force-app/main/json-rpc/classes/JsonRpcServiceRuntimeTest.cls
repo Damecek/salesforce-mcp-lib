@@ -1,5 +1,8 @@
 @IsTest
 private class JsonRpcServiceRuntimeTest {
+    private static Integer notifyCallCount = 0;
+    private static JsonRpcInvocationContext capturedContext;
+
     // --- Test fixtures ---
 
     private class EchoParams extends JsonRpcParamsBase {
@@ -32,14 +35,12 @@ private class JsonRpcServiceRuntimeTest {
     }
 
     private class NotifyHandler extends JsonRpcMethodHandler {
-        public static Integer callCount = 0;
-
         public NotifyHandler() {
             super('notify', JsonRpcParamsBase.class, JsonRpcResultBase.class);
         }
 
         public override JsonRpcResultBase invoke(JsonRpcParamsBase params, JsonRpcInvocationContext context) {
-            NotifyHandler.callCount++;
+            JsonRpcServiceRuntimeTest.notifyCallCount++;
             return new JsonRpcResultBase();
         }
     }
@@ -61,12 +62,12 @@ private class JsonRpcServiceRuntimeTest {
             .register(new ThrowingHandler());
     }
 
-    private static JsonRpcExecutionResult exec(String json) {
-        return JsonRpcServiceRuntime.execute(json, buildModule(), null);
+    private static JsonRpcExecutionResult exec(String requestJson) {
+        return JsonRpcServiceRuntime.execute(requestJson, buildModule(), null);
     }
 
-    private static Map<String, Object> single(String json) {
-        JsonRpcExecutionResult r = exec(json);
+    private static Map<String, Object> single(String requestJson) {
+        JsonRpcExecutionResult r = exec(requestJson);
         System.assert(r.hasResponse, 'Expected a response.');
         return (Map<String, Object>) JSON.deserializeUntyped(r.toJson());
     }
@@ -168,9 +169,11 @@ private class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testNotificationProducesNoResponse() {
+        notifyCallCount = 0;
         JsonRpcExecutionResult result = exec('{"jsonrpc":"2.0","method":"notify"}');
         System.assertEquals(false, result.hasResponse);
         System.assertEquals(null, result.toJson());
+        System.assertEquals(1, notifyCallCount);
     }
 
     // --- Batch ---
@@ -263,28 +266,26 @@ private class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testContextCarriesMethodNameAndId() {
-        ContextCapture.captured = null;
+        capturedContext = null;
         JsonRpcModule module = new JsonRpcModule().register(new ContextCapture());
         JsonRpcServiceRuntime.execute(
             '{"jsonrpc":"2.0","id":99,"method":"capture","params":{}}',
             module,
             null
         );
-        System.assertNotEquals(null, ContextCapture.captured);
-        System.assertEquals('capture', ContextCapture.captured.methodName);
-        System.assertEquals(99, ContextCapture.captured.requestId.value);
-        System.assertEquals(0, ContextCapture.captured.batchIndex);
+        System.assertNotEquals(null, capturedContext);
+        System.assertEquals('capture', capturedContext.methodName);
+        System.assertEquals(99, capturedContext.requestId.value);
+        System.assertEquals(0, capturedContext.batchIndex);
     }
 
     private class ContextCapture extends JsonRpcMethodHandler {
-        public static JsonRpcInvocationContext captured;
-
         public ContextCapture() {
             super('capture', JsonRpcParamsBase.class, JsonRpcResultBase.class);
         }
 
         public override JsonRpcResultBase invoke(JsonRpcParamsBase params, JsonRpcInvocationContext context) {
-            ContextCapture.captured = context;
+            JsonRpcServiceRuntimeTest.capturedContext = context;
             return new JsonRpcResultBase();
         }
     }
