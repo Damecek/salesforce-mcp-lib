@@ -1,6 +1,62 @@
 # salesforce-mcp-lib
 
-AI-first Salesforce 2GP repository with a reusable Apex MCP library and in-repo JSON-RPC 2.0 core.
+Reusable Salesforce Apex MCP library plus a local `stdio` bridge for exposing Salesforce Apex REST MCP endpoints to agent clients over OAuth 2.0 client credentials.
+
+Use it to:
+- build/package a generic Apex MCP server runtime for Salesforce
+- deploy that runtime to a Salesforce org
+- connect local agent clients such as Codex to Salesforce MCP tools exposed by your org
+
+## Install
+Install the local bridge directly from npm:
+
+```bash
+npx salesforce-mcp-lib \
+  --url https://<host>/services/apexrest/mcp \
+  --client-id "$SF_CLIENT_ID" \
+  --client-secret "$SF_CLIENT_SECRET"
+```
+
+Requirements:
+- Node.js 20+
+- a Salesforce External Client App or Connected App with client credentials flow enabled
+- a configured Run As user for that app
+- scopes suitable for Apex REST / MCP access
+
+## Example: `execute_soql`
+The library itself is a transport/runtime baseline. Actual tool names come from the MCP server you deploy in Salesforce.
+
+If your Salesforce MCP endpoint exposes a tool named `execute_soql`, a minimal local flow looks like this:
+
+```bash
+codex mcp add salesforce-org \
+  --env "SF_CLIENT_ID=${SF_CLIENT_ID}" \
+  --env "SF_CLIENT_SECRET=${SF_CLIENT_SECRET}" \
+  -- npx salesforce-mcp-lib --url "https://<host>/services/apexrest/mcp"
+```
+
+Then ask the client to call the tool, for example:
+
+```text
+Use the salesforce-org MCP server and call execute_soql with:
+SELECT Id, Name FROM Account ORDER BY CreatedDate DESC LIMIT 5
+```
+
+Direct JSON-RPC shape for the same tool call:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "execute_soql",
+    "arguments": {
+      "query": "SELECT Id, Name FROM Account ORDER BY CreatedDate DESC LIMIT 5"
+    }
+  }
+}
+```
 
 ## Scope
 - Script-first project operations.
@@ -134,8 +190,6 @@ The 2GP source includes a packageable Salesforce External Client App baseline fo
 Packaged metadata covers:
 - `ExternalClientApplication`
 - `ExtlClntAppOauthSettings`
-- `ExtlClntAppGlobalOauthSettings`
-- `ExtlClntAppOauthConfigurablePolicies`
 
 Post-install subscriber steps remain required:
 - enable the client credentials flow in the installed External Client App OAuth policy
@@ -145,9 +199,9 @@ Post-install subscriber steps remain required:
 
 The packaged header keeps the required `orgScopedExternalApp` value in Salesforce's `[Organization_ID]:[External Client App Name]` shape. That identifier is packaging-org scoped metadata, while generated values such as the consumer key and OAuth link remain out of source control.
 
-Scratch orgs can deploy the Apex package source but Salesforce rejects packaged External Client App global OAuth settings in ephemeral orgs. The repo therefore:
+Scratch orgs can deploy the Apex package source, but the repo still skips packaged External Client App metadata during scratch-org deploys. The repo therefore:
 - skips packaged ECA metadata during scratch-org `org:deploy`
-- validates the full ECA metadata set against the persistent packaging org via `npm run eca:validate`
+- validates the packaged ECA metadata set against the persistent packaging org via `npm run eca:validate`
 
 ## Examples
 Examples live in `examples/` and are intentionally not packaged runtime defaults.

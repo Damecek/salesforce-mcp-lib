@@ -16,9 +16,7 @@ if [[ "$TARGET_INSTANCE_URL" == *".scratch.my.salesforce.com"* ]]; then
   done < <(
     find force-app/main/mcp -mindepth 1 -maxdepth 1 -type d \
       ! -name externalClientApps \
-      ! -name extlClntAppGlobalOauthSets \
       ! -name extlClntAppOauthSettings \
-      ! -name extlClntAppOauthPolicies \
       | sort
   )
 else
