@@ -1,0 +1,4 @@
+interface:
+  display_name: "Salesforce MCP Server Lib"
+  short_description: "Build Apex MCP servers and wire the local Salesforce bridge"
+  default_prompt: "Use $salesforce-mcp-server-lib for best practices and constraints when building or wiring a Salesforce MCP server with this repository's Apex runtime, Apex REST transport, OAuth client credentials flow, and the local salesforce-mcp-lib stdio bridge."
