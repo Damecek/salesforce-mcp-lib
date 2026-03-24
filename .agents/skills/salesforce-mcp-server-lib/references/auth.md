@@ -18,6 +18,20 @@ Token endpoint shape:
 https://<host>/services/oauth2/token
 ```
 
+## Packaged External Client App
+
+The Salesforce package includes the definition of an External Client App and OAuth settings metadata.
+
+That does not eliminate subscriber-side setup. After installation, the user still must complete org-side authorization setup and manually retrieve the generated credentials from Salesforce Setup.
+
+The agent must explain this explicitly:
+
+- the package provides the app definition
+- the user must enable or confirm client credentials flow in the target org
+- the user must confirm the Run As user
+- the user must retrieve the client ID and client secret manually
+- those values are not discoverable from repo state, package metadata, or deploy output
+
 ## Salesforce Requirements
 
 The target Salesforce app must have:
@@ -26,54 +40,30 @@ The target Salesforce app must have:
 - a configured Run As user
 - scopes suitable for Apex REST / MCP access
 
-The bridge accepts credentials from CLI args or environment variables:
+## Required local exports
+
+The bridge accepts credentials from CLI args or environment variables, but environment variables are the preferred default:
 
 - `SF_CLIENT_ID`
 - `SF_CLIENT_SECRET`
 - optional `SF_SCOPE`
 
-## Manual Operator Step
-
-`SF_CLIENT_ID` and `SF_CLIENT_SECRET` are manual local prerequisites.
-
-Do not try to infer them from:
-
-- repo files
-- scratch-org deploy output
-- package metadata
-- existing smoke scripts
-
-If either secret is missing, stop and tell the operator to export them locally:
+Canonical local setup:
 
 ```bash
-export SF_CLIENT_ID='your-consumer-key'
-export SF_CLIENT_SECRET='your-consumer-secret'
+export SF_CLIENT_ID='your-client-id'
+export SF_CLIENT_SECRET='your-client-secret'
 ```
 
-## Common Failure Modes
+Do not claim these are auto-discoverable from the repository, package metadata, or org deploy output.
 
+## Failure Triage
+
+- Missing `SF_CLIENT_ID` or `SF_CLIENT_SECRET`:
+  stop and ask the user to finish the manual export step before debugging transport behavior.
 - HTTP 400:
   Salesforce rejected the client credentials request. Check OAuth settings, scopes, and whether the flow is enabled.
 - HTTP 401:
   check the client secret, connected app policy, and Run As user configuration.
 - Missing `access_token` in token response:
   treat this as an auth configuration failure, not as an MCP transport bug.
-
-## Bridge Command
-
-Direct bridge invocation:
-
-```bash
-npx salesforce-mcp-lib \
-  --url "https://<host>/services/apexrest/mcp" \
-  --client-id "$SF_CLIENT_ID" \
-  --client-secret "$SF_CLIENT_SECRET"
-```
-
-Environment-variable variant:
-
-```bash
-SF_CLIENT_ID=... \
-SF_CLIENT_SECRET=... \
-npx salesforce-mcp-lib --url "https://<host>/services/apexrest/mcp"
-```
