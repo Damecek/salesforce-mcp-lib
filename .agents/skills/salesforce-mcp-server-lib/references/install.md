@@ -6,16 +6,14 @@ Confirm whether the Salesforce MCP runtime is already installed in the target or
 
 ## What "installed" means
 
-The target org must already contain the reusable Apex MCP runtime from `salesforce-mcp-lib`, including the packaged External Client App definition.
+The target org must already contain the reusable Apex MCP runtime from `salesforce-mcp-lib`.
 
-For this package, the relevant packaged metadata includes:
+For this package, the relevant installed metadata includes:
 
 - Apex MCP runtime classes
 - the reusable Apex REST transport
-- `ExternalClientApplication`
-- `ExtlClntAppOauthSettings`
 
-The packaged External Client App definition is part of the package, but subscriber-specific credentials are still created and managed in the target org.
+OAuth app configuration and subscriber credentials are org-side setup, not packaged runtime metadata.
 
 ## Required check
 

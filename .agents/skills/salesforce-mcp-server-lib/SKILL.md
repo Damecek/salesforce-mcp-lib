@@ -28,7 +28,7 @@ Follow this order:
 - Do not debug transport behavior before confirming manual auth prerequisites.
 - Treat `SF_CLIENT_ID` and `SF_CLIENT_SECRET` as manual local prerequisites.
   They are not discoverable from repo state, package metadata, or deploy output.
-- Explain that the package includes an External Client App definition, but the user must still finish org-side setup and manually retrieve the client ID and client secret after installation.
+- Explain that OAuth app setup is org-side/manual, and the user must retrieve the client ID and client secret from Salesforce Setup after configuration.
 - Prefer local package docs and examples over memory when generating Apex code.
 
 ## Expected Output

@@ -37,7 +37,6 @@ After retrieval, start with:
 
 - the retrieved `McpServer` classes
 - the retrieved `McpHttpTransport` class
-- the retrieved packaged External Client App metadata
 - local example Apex files that demonstrate server registration and HTTP wiring
 
 ## What to extract

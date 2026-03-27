@@ -18,15 +18,12 @@ Token endpoint shape:
 https://<host>/services/oauth2/token
 ```
 
-## Packaged External Client App
+## OAuth App Setup Is Manual
 
-The Salesforce package includes the definition of an External Client App and OAuth settings metadata.
-
-That does not eliminate subscriber-side setup. After installation, the user still must complete org-side authorization setup and manually retrieve the generated credentials from Salesforce Setup.
+OAuth app setup is org-side. After installation, the user must complete authorization setup in Salesforce Setup and manually retrieve the generated credentials.
 
 The agent must explain this explicitly:
 
-- the package provides the app definition
 - the user must enable or confirm client credentials flow in the target org
 - the user must confirm the Run As user
 - the user must retrieve the client ID and client secret manually

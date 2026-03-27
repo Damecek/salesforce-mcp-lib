@@ -17,13 +17,9 @@ if [[ -z "${SF_CLIENT_ID:-}" ]]; then
   cat >&2 <<'EOF'
 Missing SF_CLIENT_ID for local Codex MCP smoke run.
 
-This value is not discoverable from repo state or scratch-org deploy output.
-Manual local step:
-1. Open the External Client App in the target Salesforce org.
-2. Retrieve the consumer key and consumer secret from OAuth settings.
-3. Export them locally:
-   export SF_CLIENT_ID='your-consumer-key'
-   export SF_CLIENT_SECRET='your-consumer-secret'
+SF_CLIENT_ID/SF_CLIENT_SECRET are manual prerequisites and are not discoverable from repo state, package metadata, or scratch-org deploy output.
+Follow README:
+  README.md -> "Manual OAuth App Setup (External Client App)"
 
 Then retry:
   npm run codex:mcp:smoke
@@ -35,13 +31,9 @@ if [[ -z "${SF_CLIENT_SECRET:-}" ]]; then
   cat >&2 <<'EOF'
 Missing SF_CLIENT_SECRET for local Codex MCP smoke run.
 
-This value is not discoverable from repo state or scratch-org deploy output.
-Manual local step:
-1. Open the External Client App in the target Salesforce org.
-2. Retrieve the consumer key and consumer secret from OAuth settings.
-3. Export them locally:
-   export SF_CLIENT_ID='your-consumer-key'
-   export SF_CLIENT_SECRET='your-consumer-secret'
+SF_CLIENT_ID/SF_CLIENT_SECRET are manual prerequisites and are not discoverable from repo state, package metadata, or scratch-org deploy output.
+Follow README:
+  README.md -> "Manual OAuth App Setup (External Client App)"
 
 Then retry:
   npm run codex:mcp:smoke

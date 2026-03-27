@@ -2,26 +2,7 @@
 set -euo pipefail
 
 TARGET_ORG="${TARGET_ORG:-${ORG_ALIAS:-sf-mcp-lib-scratch}}"
-TARGET_INSTANCE_URL="$(sf org display --target-org "$TARGET_ORG" --json | node -e '
-const fs = require("fs");
-const payload = JSON.parse(fs.readFileSync(0, "utf8"));
-process.stdout.write((payload.result && payload.result.instanceUrl) ? payload.result.instanceUrl : "");
-')"
-
-DEPLOY_ARGS=(--target-org "$TARGET_ORG" --wait 20 --json)
-
-if [[ "$TARGET_INSTANCE_URL" == *".scratch.my.salesforce.com"* ]]; then
-  while IFS= read -r SOURCE_DIR; do
-    DEPLOY_ARGS+=(--source-dir "$SOURCE_DIR")
-  done < <(
-    find force-app/main/mcp -mindepth 1 -maxdepth 1 -type d \
-      ! -name externalClientApps \
-      ! -name extlClntAppOauthSettings \
-      | sort
-  )
-else
-  DEPLOY_ARGS+=(--source-dir force-app)
-fi
+DEPLOY_ARGS=(--target-org "$TARGET_ORG" --wait 20 --json --source-dir force-app)
 
 set +e
 DEPLOY_OUTPUT="$(sf project deploy start "${DEPLOY_ARGS[@]}" 2>&1)"

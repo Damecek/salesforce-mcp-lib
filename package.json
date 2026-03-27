@@ -18,7 +18,6 @@
     "harness:inspect:smoke": "./scripts/harness-inspect-smoke.sh",
     "harness:proxy:smoke": "./scripts/harness-proxy-smoke.sh",
     "codex:mcp:smoke": "./scripts/codex-mcp-smoke.sh",
-    "eca:validate": "./scripts/external-client-app-validate.sh",
     "task:prepare": "./scripts/task-prepare.sh",
     "task:prepare:skip-org": "./scripts/task-prepare-skip-org.sh",
     "validate": "./scripts/validate.sh",

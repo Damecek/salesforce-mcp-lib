@@ -154,18 +154,8 @@ Manual local prerequisite:
 - `SF_CLIENT_ID`
 - `SF_CLIENT_SECRET`
 
-These two values are not discoverable from repo state or scratch-org deploy state alone. For now, local proxy/Codex smokes require one manual post-setup step in the target org:
-1. Open the installed or configured External Client App in Salesforce Setup.
-2. Enable the client credentials flow and assign the execution user if that setup is not already complete.
-3. Open the app's OAuth settings and retrieve the consumer key and consumer secret.
-4. Export them into your shell.
-
-Example:
-
-```bash
-export SF_CLIENT_ID='your-consumer-key'
-export SF_CLIENT_SECRET='your-consumer-secret'
-```
+These two values are not discoverable from repo state, package metadata, or scratch-org deploy output.
+Complete the manual setup in [Manual OAuth App Setup (External Client App)](#manual-oauth-app-setup-external-client-app) and export both values before proxy/Codex smoke runs.
 
 Expected local sequence before proxy-based smoke runs:
 
@@ -184,24 +174,35 @@ MCP_PATH=/services/apexrest/mcp/opportunity/ npm run harness:url
 
 If `SF_CLIENT_ID` or `SF_CLIENT_SECRET` is missing, the supported behavior is to stop and complete the manual export step first.
 
-## External Client App
-The 2GP source includes a packageable Salesforce External Client App baseline for the CLI/auth integration story.
+## Manual OAuth App Setup (External Client App)
+Use this runbook to configure auth in Salesforce and retrieve the two required local secrets.
 
-Packaged metadata covers:
-- `ExternalClientApplication`
-- `ExtlClntAppOauthSettings`
+1. Open Salesforce Setup and navigate to your External Client App.
+2. Open the app's **Policies** tab.
+3. In **OAuth Flows and External Client App Enhancements**:
+   - enable **Client Credentials Flow**
+   - set **Run As (Username)** to the integration user that should execute Apex REST / MCP calls
+4. In **Plugin Policies** and app OAuth settings, confirm scopes include API access suitable for MCP calls (at minimum `api`).
+5. Open the app's **Settings** tab and locate **Consumer Key and Secret**.
+6. Reveal/copy the values and export them locally:
 
-Post-install subscriber steps remain required:
-- enable the client credentials flow in the installed External Client App OAuth policy
-- assign the execution user for the client credentials flow in the installed org
-- retrieve or rotate the consumer key and client secret in the installed org
-- run the CLI against the installed Apex REST MCP endpoint URL
+```bash
+export SF_CLIENT_ID='your-consumer-key'
+export SF_CLIENT_SECRET='your-consumer-secret'
+```
 
-The packaged header keeps the required `orgScopedExternalApp` value in Salesforce's `[Organization_ID]:[External Client App Name]` shape. That identifier is packaging-org scoped metadata, while generated values such as the consumer key and OAuth link remain out of source control.
+7. Derive the target MCP endpoint URL and run smoke checks:
 
-Scratch orgs can deploy the Apex package source, but the repo still skips packaged External Client App metadata during scratch-org deploys. The repo therefore:
-- skips packaged ECA metadata during scratch-org `org:deploy`
-- validates the packaged ECA metadata set against the persistent packaging org via `npm run eca:validate`
+```bash
+npm run harness:url
+npm run harness:proxy:smoke
+npm run codex:mcp:smoke
+```
+
+Notes:
+- `SF_CLIENT_ID` and `SF_CLIENT_SECRET` are manual prerequisites.
+- They are not discoverable from repository state, package metadata, or deploy output.
+- Connected App is a valid alternative, but this project's canonical setup path is External Client App.
 
 ## Examples
 Examples live in `examples/` and are intentionally not packaged runtime defaults.
