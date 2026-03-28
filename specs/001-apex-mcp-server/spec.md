@@ -17,7 +17,7 @@ A Salesforce developer installs the second-generation managed package into their
 
 **Acceptance Scenarios**:
 
-1. **Given** a Salesforce org with the package installed, **When** a developer creates an Apex class implementing the tool interface with a name, description, and input schema, **Then** the tool is listed in the `tools/list` MCP response with correct metadata.
+1. **Given** a Salesforce org with the package installed, **When** a developer creates an Apex class implementing the tool interface with a name, description, and input schema, and registers it via the programmatic registry API, **Then** the tool is listed in the `tools/list` MCP response with correct metadata.
 2. **Given** a registered tool, **When** an MCP client sends a `tools/call` request with valid arguments, **Then** the tool executes the Apex logic and returns the result in MCP-compliant content format.
 3. **Given** a registered tool, **When** an MCP client sends a `tools/call` request with invalid or missing arguments, **Then** the system returns an MCP-compliant error result with `isError: true` and a descriptive message.
 4. **Given** a registered tool, **When** the tool's Apex execution throws an unhandled exception, **Then** the system catches the exception, returns an MCP error result, and does not crash the server session.
@@ -131,11 +131,12 @@ An administrator configures authentication so that only authorized AI agents can
 
 **Tools Capability**
 - **FR-006**: System MUST provide an Apex interface/base class that developers extend to implement custom MCP tools.
-- **FR-007**: System MUST automatically discover and register all Apex classes implementing the tool interface at server startup.
+- **FR-007**: System MUST provide a programmatic registration API (e.g., `McpServer.registerTool(...)`) that developers call from an initialization class to register their tool implementations. All tools registered before the server handles its first request are available for discovery.
 - **FR-008**: System MUST respond to `tools/list` requests with all registered tools, including name, description, and JSON Schema for input parameters.
 - **FR-009**: System MUST respond to `tools/call` requests by routing to the correct tool implementation, passing deserialized arguments, and returning the result.
 - **FR-010**: System MUST support tool results containing text content, and optionally image/audio content as base64-encoded data.
 - **FR-011**: System MUST distinguish between tool execution errors (`isError: true` in result) and protocol errors (JSON-RPC error responses).
+- **FR-011a**: System MUST enforce unique names for tools, unique URIs for resources, and unique names for prompts. Attempting to register a duplicate MUST throw an Apex exception at registration time with a clear error message identifying the conflicting name/URI.
 
 **Resources Capability**
 - **FR-012**: System MUST provide an Apex interface/base class for implementing custom MCP resources.
@@ -149,7 +150,7 @@ An administrator configures authentication so that only authorized AI agents can
 - **FR-018**: System MUST respond to `prompts/get` by routing to the correct prompt implementation and returning formatted messages.
 
 **TypeScript HTTP-to-Stdio Proxy**
-- **FR-019**: System MUST include a TypeScript-based proxy that exposes an HTTP endpoint and translates MCP Streamable HTTP transport to communication with the Salesforce-hosted Apex MCP server.
+- **FR-019**: System MUST include a TypeScript-based proxy that accepts MCP client connections via stdio and forwards JSON-RPC messages to a single Salesforce Apex REST endpoint (`@RestResource`) acting as the JSON-RPC dispatcher.
 - **FR-020**: The proxy MUST handle session management, including assigning and validating `MCP-Session-Id` headers.
 - **FR-021**: The proxy MUST validate the `MCP-Protocol-Version` header on all incoming requests.
 - **FR-022**: The proxy MUST support stdio transport on its client-facing side so it can be launched by MCP clients as a subprocess.
@@ -160,9 +161,22 @@ An administrator configures authentication so that only authorized AI agents can
 - **FR-025**: The package MUST expose tool, resource, and prompt interfaces as `global` Apex classes so subscribers can extend them.
 - **FR-026**: The package MUST include all necessary custom metadata, classes, and configuration for the MCP server framework to function after installation.
 
+**Out of Scope (v1)**
+- Logging capability (server→client log messages via `notifications/message`)
+- List-changed notifications (`notifications/tools/list_changed`, `notifications/resources/list_changed`, `notifications/prompts/list_changed`)
+- Completions / argument autocomplete (`completion/complete`)
+- Sampling (server-initiated LLM requests via `sampling/createMessage`)
+- Roots (`roots/list` and `notifications/roots/list_changed`)
+- Resource templates (URI template discovery and expansion)
+- Resource subscriptions (`resources/subscribe`, `resources/unsubscribe`, `notifications/resources/updated`)
+
 **Authentication**
 - **FR-027**: System MUST support authentication via OAuth 2.0 access tokens, leveraging Salesforce Connected Apps as the authorization mechanism.
 - **FR-028**: System MUST reject unauthenticated requests with `401 Unauthorized` and appropriate challenge headers when authentication is required.
+
+**Observability**
+- **FR-032**: The TypeScript proxy MUST emit log output to stdout/stderr with a configurable log level (e.g., debug, info, warn, error).
+- **FR-033**: The Apex framework MUST use Salesforce platform debug logs (`System.debug`) with appropriate log levels for request routing, registration events, and error conditions. No custom log object is required for v1.
 
 **Testing**
 - **FR-029**: The package MUST include comprehensive Apex unit tests achieving at minimum 75% code coverage (required for 2GP promotion), targeting 90%+ coverage.
@@ -201,6 +215,16 @@ An administrator configures authentication so that only authorized AI agents can
 - The package uses a managed namespace to protect intellectual property and provide a stable API contract for subscribers.
 - Salesforce's existing OAuth 2.0 Connected App infrastructure is sufficient for MCP authentication needs — no custom authorization server is required.
 - Governor limits are the responsibility of the tool/resource/prompt implementer (the subscriber developer), not the framework — the framework documents best practices but cannot override platform limits.
-- The proxy communicates with Salesforce via REST API (Apex REST endpoints or similar), not via Salesforce's internal messaging systems.
+- The proxy communicates with Salesforce via a single `@RestResource` Apex REST endpoint that acts as a JSON-RPC dispatcher. The proxy POSTs each JSON-RPC message as the HTTP body; the Apex endpoint deserializes, routes to the correct handler, and returns the JSON-RPC response.
 - Binary content (images, audio) in MCP responses will be base64-encoded as strings, within Salesforce's Apex heap size limits.
 - The MCP Inspector (current version) is the primary external testing tool; compatibility with other MCP clients is expected but not individually validated in v1.
+
+## Clarifications
+
+### Session 2026-03-28
+
+- Q: Which optional MCP 2025-11-25 capabilities beyond tools, resources, and prompts are in-scope for v1? → A: None — v1 includes only the core three capabilities (tools, resources, prompts). All optional features (logging, notifications, completions, sampling, roots, resource templates, subscriptions) are explicitly out of scope.
+- Q: How should the framework discover developer-implemented tool, resource, and prompt classes? → A: Programmatic Apex-based registry — developers call a registration method (e.g., `McpServer.registerTool(...)`) from an initialization class to register their implementations.
+- Q: What communication pattern should the TS proxy use to reach the Apex MCP server? → A: Single Apex REST endpoint — one `@RestResource` class receives all JSON-RPC messages as HTTP POST bodies and dispatches internally to the correct handler.
+- Q: What level of observability should the framework provide in v1? → A: Minimal — Apex platform debug logs (`System.debug`) plus proxy console output (stdout/stderr) with configurable log level. No custom log objects or structured tracing for v1.
+- Q: How should the framework handle duplicate tool/resource/prompt name registration? → A: Reject duplicate — throw an Apex exception at registration time with a clear error message identifying the conflicting name/URI.
