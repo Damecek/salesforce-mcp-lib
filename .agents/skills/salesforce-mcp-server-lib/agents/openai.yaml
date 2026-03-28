@@ -1,4 +1,0 @@
-interface:
-  display_name: "Salesforce MCP Server Lib"
-  short_description: "Install, authorize, build, and connect Salesforce MCP"
-  default_prompt: "Use $salesforce-mcp-server-lib to confirm package install, explain External Client App authorization, lock the target tools/resources/templates/prompts, retrieve local API reference, implement the Apex MCP server, and connect it to the agent through `npx salesforce-mcp-lib`."
