@@ -9,7 +9,7 @@
 
 ### User Story 1 - Install Package and Implement First MCP Tool (Priority: P1)
 
-A Salesforce developer installs the second-generation managed package into their org. Using the framework's provided base classes and interfaces, they implement a custom MCP Tool — for example, a "query accounts" tool that accepts search parameters and returns matching Salesforce Account records. The developer writes an Apex class that extends the framework's tool interface, defines the tool's name, input schema, and execution logic. After deploying, the tool is automatically discoverable by any MCP client that connects.
+A Salesforce developer installs the second-generation unlocked package into their org. Using the framework's provided base classes and interfaces, they implement a custom MCP Tool — for example, a "query accounts" tool that accepts search parameters and returns matching Salesforce Account records. The developer writes an Apex class that extends the framework's tool interface, defines the tool's name, input schema, and execution logic. After deploying, the tool is automatically discoverable by any MCP client that connects.
 
 **Why this priority**: Tools are the core value proposition of MCP — they enable AI agents to take actions within Salesforce. Without the ability to implement at least one tool, the entire package has no utility.
 
@@ -20,7 +20,7 @@ A Salesforce developer installs the second-generation managed package into their
 1. **Given** a Salesforce org with the package installed, **When** a developer creates an Apex class implementing the tool interface with a name, description, and input schema, and registers it via the programmatic registry API, **Then** the tool is listed in the `tools/list` MCP response with correct metadata.
 2. **Given** a registered tool, **When** an MCP client sends a `tools/call` request with valid arguments, **Then** the tool executes the Apex logic and returns the result in MCP-compliant content format.
 3. **Given** a registered tool, **When** an MCP client sends a `tools/call` request with invalid or missing arguments, **Then** the system returns an MCP-compliant error result with `isError: true` and a descriptive message.
-4. **Given** a registered tool, **When** the tool's Apex execution throws an unhandled exception, **Then** the system catches the exception, returns an MCP error result, and does not crash the server session.
+4. **Given** a registered tool, **When** the tool's Apex execution throws a catchable exception, **Then** the Apex framework catches it and returns an MCP error result (`isError: true`) with the exception message. **When** the tool triggers an uncatchable `System.LimitException` (governor limits), **Then** the proxy detects the non-JSON / HTTP 500 response from Salesforce and translates it into an MCP-compliant error result with a descriptive message. Neither case crashes the server session.
 
 ---
 
@@ -109,10 +109,10 @@ An administrator configures authentication so that only authorized AI agents can
 
 ### Edge Cases
 
-- What happens when a tool exceeds Salesforce Apex governor limits during execution (CPU time, SOQL queries, heap size)?
+- What happens when a tool exceeds Salesforce Apex governor limits during execution (CPU time, SOQL queries, heap size)? → The Apex transaction terminates with HTTP 500; the proxy detects the non-JSON response and returns an MCP-compliant error result to the client.
 - How does the system handle concurrent MCP sessions from multiple AI agents targeting the same org?
 - What happens when a tool's Apex implementation references custom objects or fields that don't exist in the subscriber's org?
-- How does the proxy handle network interruptions between the proxy and Salesforce?
+- How does the proxy handle network interruptions between the proxy and Salesforce? → No retry; the proxy immediately returns an MCP-compliant JSON-RPC error response to the client.
 - What happens when the MCP client sends a request for a protocol version the server doesn't support?
 - How does the system behave when the Salesforce org's API limits are exhausted?
 - What happens when a tool returns data exceeding MCP message size limits?
@@ -151,14 +151,17 @@ An administrator configures authentication so that only authorized AI agents can
 
 **TypeScript HTTP-to-Stdio Proxy**
 - **FR-019**: System MUST include a TypeScript-based proxy that accepts MCP client connections via stdio and forwards JSON-RPC messages to a single Salesforce Apex REST endpoint (`@RestResource`) acting as the JSON-RPC dispatcher.
-- **FR-020**: The proxy MUST handle session management, including assigning and validating `MCP-Session-Id` headers.
+- **FR-020**: The proxy MUST handle all session management, including assigning and validating `MCP-Session-Id` headers, tracking protocol version, and managing session lifecycle. The Apex REST endpoint is stateless and does not store or validate session state.
 - **FR-021**: The proxy MUST validate the `MCP-Protocol-Version` header on all incoming requests.
 - **FR-022**: The proxy MUST support stdio transport on its client-facing side so it can be launched by MCP clients as a subprocess.
 - **FR-023**: The proxy MUST relay JSON-RPC messages between the MCP client and the Salesforce Apex server with minimal latency overhead.
+- **FR-023a**: The proxy MUST detect non-JSON or HTTP error responses from the Salesforce endpoint (e.g., HTTP 500 from uncatchable `System.LimitException`) and translate them into MCP-compliant JSON-RPC error responses with a descriptive error message, rather than forwarding raw HTTP errors to the client.
+- **FR-023b**: The proxy MUST authenticate to the Salesforce org via an OAuth device flow at startup, using a Salesforce Connected App. The proxy initiates the device authorization, prompts the user to approve in a browser, and obtains an access token.
+- **FR-023c**: The proxy MUST cache the obtained OAuth token and refresh it automatically when it expires, avoiding re-prompting the user for each session.
 
 **Packaging**
-- **FR-024**: System MUST be distributed as a Salesforce Second Generation Managed Package (2GP).
-- **FR-025**: The package MUST expose tool, resource, and prompt interfaces as `global` Apex classes so subscribers can extend them.
+- **FR-024**: System MUST be distributed as a Salesforce Second Generation Unlocked Package (2GP, no namespace).
+- **FR-025**: The package MUST expose tool, resource, and prompt interfaces as `public` Apex classes (virtual/abstract as appropriate) so subscribers can extend them.
 - **FR-026**: The package MUST include all necessary custom metadata, classes, and configuration for the MCP server framework to function after installation.
 
 **Out of Scope (v1)**
@@ -179,13 +182,13 @@ An administrator configures authentication so that only authorized AI agents can
 - **FR-033**: The Apex framework MUST use Salesforce platform debug logs (`System.debug`) with appropriate log levels for request routing, registration events, and error conditions. No custom log object is required for v1.
 
 **Testing**
-- **FR-029**: The package MUST include comprehensive Apex unit tests achieving at minimum 75% code coverage (required for 2GP promotion), targeting 90%+ coverage.
+- **FR-029**: The package MUST include comprehensive Apex unit tests achieving at minimum 75% code coverage (required for unlocked package version creation), targeting 90%+ coverage.
 - **FR-030**: The system MUST be testable end-to-end using the MCP Inspector (`npx @modelcontextprotocol/inspector`).
 - **FR-031**: The system MUST include example/sample tool, resource, and prompt implementations for developers to reference.
 
 ### Key Entities
 
-- **MCP Server Session**: Represents an active connection between an MCP client and the Salesforce MCP server. Tracks protocol version, negotiated capabilities, and session state (initializing, operational, closed).
+- **MCP Server Session**: Represents an active connection between an MCP client and the Salesforce MCP server. Managed entirely by the TypeScript proxy (not Salesforce). The proxy tracks protocol version, negotiated capabilities, and session lifecycle (initializing, operational, closed). The Apex REST endpoint is stateless — it receives and responds to individual JSON-RPC messages with no cross-request session awareness.
 - **Tool Definition**: A registered tool with a unique name, human-readable description, JSON Schema for input parameters, optional output schema, and a reference to the implementing Apex class.
 - **Resource Definition**: A registered resource with a unique URI, name, description, MIME type, and a reference to the implementing Apex class.
 - **Prompt Definition**: A registered prompt with a unique name, description, argument definitions, and a reference to the implementing Apex class that generates prompt messages.
@@ -212,8 +215,8 @@ An administrator configures authentication so that only authorized AI agents can
 - The subscriber org has API access enabled (API calls are available and not permanently exhausted).
 - The TypeScript proxy runs in a Node.js environment on the same network or a network with reliable connectivity to the Salesforce org (standard internet latency is acceptable).
 - AI agents connecting via MCP comply with the MCP 2025-11-25 specification — the server does not need to support older protocol versions in v1.
-- The package uses a managed namespace to protect intellectual property and provide a stable API contract for subscribers.
-- Salesforce's existing OAuth 2.0 Connected App infrastructure is sufficient for MCP authentication needs — no custom authorization server is required.
+- The package is an unlocked package with no namespace. Classes are referenced directly by name (e.g., `McpServer`, not `mcp.McpServer`). Unlocked packages do not provide IP protection or enforce API versioning — this is acceptable for v1.
+- Salesforce's existing OAuth 2.0 Connected App infrastructure is sufficient for MCP authentication needs — no custom authorization server is required. The proxy uses the OAuth 2.0 device authorization flow (RFC 8628) to authenticate to Salesforce, requiring a pre-configured Connected App in the subscriber org.
 - Governor limits are the responsibility of the tool/resource/prompt implementer (the subscriber developer), not the framework — the framework documents best practices but cannot override platform limits.
 - The proxy communicates with Salesforce via a single `@RestResource` Apex REST endpoint that acts as a JSON-RPC dispatcher. The proxy POSTs each JSON-RPC message as the HTTP body; the Apex endpoint deserializes, routes to the correct handler, and returns the JSON-RPC response.
 - Binary content (images, audio) in MCP responses will be base64-encoded as strings, within Salesforce's Apex heap size limits.
@@ -228,3 +231,8 @@ An administrator configures authentication so that only authorized AI agents can
 - Q: What communication pattern should the TS proxy use to reach the Apex MCP server? → A: Single Apex REST endpoint — one `@RestResource` class receives all JSON-RPC messages as HTTP POST bodies and dispatches internally to the correct handler.
 - Q: What level of observability should the framework provide in v1? → A: Minimal — Apex platform debug logs (`System.debug`) plus proxy console output (stdout/stderr) with configurable log level. No custom log objects or structured tracing for v1.
 - Q: How should the framework handle duplicate tool/resource/prompt name registration? → A: Reject duplicate — throw an Apex exception at registration time with a clear error message identifying the conflicting name/URI.
+- Q: Where should MCP session state be stored between requests? → A: Proxy-side only — the proxy tracks all session state (protocol version, capabilities, lifecycle); the Apex REST endpoint is fully stateless per request with no session awareness.
+- Q: How should the framework handle uncatchable Apex `System.LimitException` (governor limit violations)? → A: Framework catches all catchable exceptions and returns MCP error results; the proxy detects non-JSON or HTTP 500 responses from Salesforce and translates them into MCP-compliant error results with a descriptive message.
+- Q: How should the proxy authenticate to the Salesforce REST endpoint? → A: OAuth device flow — the proxy initiates an interactive OAuth login to Salesforce at startup and caches the token.
+- Q: What package type and namespace should be used? → A: Unlocked package (no namespace). Not a managed package — no namespace prefix on classes.
+- Q: How should the proxy handle network interruptions or HTTP failures between itself and Salesforce? → A: No retry — immediately return an MCP-compliant error to the client on any Salesforce HTTP failure. No retry logic in v1.
