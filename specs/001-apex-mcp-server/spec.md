@@ -103,7 +103,6 @@ An administrator configures authentication so that only authorized AI agents can
 1. **Given** an MCP server with authentication enabled, **When** an unauthenticated client sends a request, **Then** the server responds with a `401 Unauthorized` status with appropriate OAuth challenge headers.
 2. **Given** a valid OAuth access token, **When** a client includes it in the `Authorization: Bearer` header, **Then** the server accepts the request and processes it normally.
 3. **Given** an expired or revoked access token, **When** a client sends a request, **Then** the server rejects the request with an appropriate error.
-4. **Given** a valid token with limited scope, **When** a client attempts to invoke a tool outside its permitted scope, **Then** the server returns a `403 Forbidden` with `insufficient_scope` error.
 
 ---
 
@@ -130,10 +129,10 @@ An administrator configures authentication so that only authorized AI agents can
 - **FR-005**: System MUST return standard JSON-RPC error codes for protocol errors (e.g., `-32601` for method not found, `-32602` for invalid params, `-32700` for parse errors).
 
 **Tools Capability**
-- **FR-006**: System MUST provide an Apex interface/base class that developers extend to implement custom MCP tools.
-- **FR-007**: System MUST provide a programmatic registration API (e.g., `McpServer.registerTool(...)`) that developers call from an initialization class to register their tool implementations. All tools registered before the server handles its first request are available for discovery.
+- **FR-006**: System MUST provide an Apex interface/base class that developers extend to implement custom MCP tools. The tool interface MUST include: (1) a method that returns the input schema as a `Map<String, Object>` mirroring JSON Schema structure, (2) a mandatory validate method that receives arguments as `Map<String, Object>` — the framework calls this before execution and every tool MUST implement it, and (3) an execute method that receives the validated tool arguments as `Map<String, Object>`. The framework does not perform JSON Schema validation itself; validation logic is the developer's responsibility but the framework enforces that it exists via the interface contract.
+- **FR-007**: System MUST provide a programmatic registration API (e.g., `McpServer.registerTool(...)`) that developers call within their own `@RestResource` endpoint class to register tool implementations before delegating to the framework's request handler (e.g., `McpServer.handleRequest()`). Because Apex is stateless, registration occurs on every incoming request. This pattern allows subscribers to define multiple independent MCP endpoints with different capability sets.
 - **FR-008**: System MUST respond to `tools/list` requests with all registered tools, including name, description, and JSON Schema for input parameters.
-- **FR-009**: System MUST respond to `tools/call` requests by routing to the correct tool implementation, passing deserialized arguments, and returning the result.
+- **FR-009**: System MUST respond to `tools/call` requests by routing to the correct tool implementation, calling the tool's mandatory validate method with deserialized arguments first, and only if validation passes, calling the execute method and returning the result. If validation fails, the framework MUST return an MCP-compliant error result (`isError: true`) with the validation error message without invoking execute.
 - **FR-010**: System MUST support tool results containing text content, and optionally image/audio content as base64-encoded data.
 - **FR-011**: System MUST distinguish between tool execution errors (`isError: true` in result) and protocol errors (JSON-RPC error responses).
 - **FR-011a**: System MUST enforce unique names for tools, unique URIs for resources, and unique names for prompts. Attempting to register a duplicate MUST throw an Apex exception at registration time with a clear error message identifying the conflicting name/URI.
@@ -150,19 +149,19 @@ An administrator configures authentication so that only authorized AI agents can
 - **FR-018**: System MUST respond to `prompts/get` by routing to the correct prompt implementation and returning formatted messages.
 
 **TypeScript HTTP-to-Stdio Proxy**
-- **FR-019**: System MUST include a TypeScript-based proxy that accepts MCP client connections via stdio and forwards JSON-RPC messages to a single Salesforce Apex REST endpoint (`@RestResource`) acting as the JSON-RPC dispatcher.
+- **FR-019**: System MUST include a TypeScript-based proxy that accepts MCP client connections via stdio and forwards JSON-RPC messages to a subscriber-defined Salesforce Apex REST endpoint (`@RestResource`) acting as the JSON-RPC dispatcher. The proxy MUST accept the endpoint URL path as a configuration parameter, since subscribers may define multiple MCP endpoints.
 - **FR-020**: The proxy MUST handle all session management, including assigning and validating `MCP-Session-Id` headers, tracking protocol version, and managing session lifecycle. The Apex REST endpoint is stateless and does not store or validate session state.
 - **FR-021**: The proxy MUST validate the `MCP-Protocol-Version` header on all incoming requests.
 - **FR-022**: The proxy MUST support stdio transport on its client-facing side so it can be launched by MCP clients as a subprocess.
 - **FR-023**: The proxy MUST relay JSON-RPC messages between the MCP client and the Salesforce Apex server with minimal latency overhead.
 - **FR-023a**: The proxy MUST detect non-JSON or HTTP error responses from the Salesforce endpoint (e.g., HTTP 500 from uncatchable `System.LimitException`) and translate them into MCP-compliant JSON-RPC error responses with a descriptive error message, rather than forwarding raw HTTP errors to the client.
-- **FR-023b**: The proxy MUST authenticate to the Salesforce org via an OAuth device flow at startup, using a Salesforce Connected App. The proxy initiates the device authorization, prompts the user to approve in a browser, and obtains an access token.
-- **FR-023c**: The proxy MUST cache the obtained OAuth token and refresh it automatically when it expires, avoiding re-prompting the user for each session.
+- **FR-023b**: The proxy MUST authenticate to the Salesforce org via the OAuth 2.0 Client Credentials flow at startup, using a pre-configured Salesforce Connected App. The proxy exchanges client credentials for an access token without interactive user involvement.
+- **FR-023c**: The proxy MUST cache the obtained OAuth access token and automatically re-authenticate via client credentials when it expires.
 
 **Packaging**
 - **FR-024**: System MUST be distributed as a Salesforce Second Generation Unlocked Package (2GP, no namespace).
 - **FR-025**: The package MUST expose tool, resource, and prompt interfaces as `public` Apex classes (virtual/abstract as appropriate) so subscribers can extend them.
-- **FR-026**: The package MUST include all necessary custom metadata, classes, and configuration for the MCP server framework to function after installation.
+- **FR-026**: The package MUST include all necessary Apex classes for the MCP server framework to function after installation. No Custom Metadata Types or Custom Settings are used; all framework configuration and behavior is resolved entirely in Apex code.
 
 **Out of Scope (v1)**
 - Logging capability (server→client log messages via `notifications/message`)
@@ -172,9 +171,10 @@ An administrator configures authentication so that only authorized AI agents can
 - Roots (`roots/list` and `notifications/roots/list_changed`)
 - Resource templates (URI template discovery and expansion)
 - Resource subscriptions (`resources/subscribe`, `resources/unsubscribe`, `notifications/resources/updated`)
+- Per-tool/resource/prompt authorization scoping (connection-level auth only in v1)
 
 **Authentication**
-- **FR-027**: System MUST support authentication via OAuth 2.0 access tokens, leveraging Salesforce Connected Apps as the authorization mechanism.
+- **FR-027**: System MUST support authentication via OAuth 2.0 access tokens, leveraging Salesforce Connected Apps as the authorization mechanism. In v1, a valid token grants access to all tools, resources, and prompts registered on the endpoint (connection-level authorization). Per-tool scoping is deferred to a future version.
 - **FR-028**: System MUST reject unauthenticated requests with `401 Unauthorized` and appropriate challenge headers when authentication is required.
 
 **Observability**
@@ -189,7 +189,7 @@ An administrator configures authentication so that only authorized AI agents can
 ### Key Entities
 
 - **MCP Server Session**: Represents an active connection between an MCP client and the Salesforce MCP server. Managed entirely by the TypeScript proxy (not Salesforce). The proxy tracks protocol version, negotiated capabilities, and session lifecycle (initializing, operational, closed). The Apex REST endpoint is stateless — it receives and responds to individual JSON-RPC messages with no cross-request session awareness.
-- **Tool Definition**: A registered tool with a unique name, human-readable description, JSON Schema for input parameters, optional output schema, and a reference to the implementing Apex class.
+- **Tool Definition**: A registered tool with a unique name, human-readable description, JSON Schema for input parameters (defined as `Map<String, Object>` mirroring JSON Schema structure), and a reference to the implementing Apex class.
 - **Resource Definition**: A registered resource with a unique URI, name, description, MIME type, and a reference to the implementing Apex class.
 - **Prompt Definition**: A registered prompt with a unique name, description, argument definitions, and a reference to the implementing Apex class that generates prompt messages.
 - **Tool Result**: The output of a tool invocation, containing an array of content blocks (text, image, audio) and an optional error flag.
@@ -216,9 +216,9 @@ An administrator configures authentication so that only authorized AI agents can
 - The TypeScript proxy runs in a Node.js environment on the same network or a network with reliable connectivity to the Salesforce org (standard internet latency is acceptable).
 - AI agents connecting via MCP comply with the MCP 2025-11-25 specification — the server does not need to support older protocol versions in v1.
 - The package is an unlocked package with no namespace. Classes are referenced directly by name (e.g., `McpServer`, not `mcp.McpServer`). Unlocked packages do not provide IP protection or enforce API versioning — this is acceptable for v1.
-- Salesforce's existing OAuth 2.0 Connected App infrastructure is sufficient for MCP authentication needs — no custom authorization server is required. The proxy uses the OAuth 2.0 device authorization flow (RFC 8628) to authenticate to Salesforce, requiring a pre-configured Connected App in the subscriber org.
+- Salesforce's existing OAuth 2.0 Connected App infrastructure is sufficient for MCP authentication needs — no custom authorization server is required. The proxy uses the OAuth 2.0 Client Credentials flow to authenticate to Salesforce, requiring a pre-configured Connected App with client credentials (client ID and secret) in the subscriber org.
 - Governor limits are the responsibility of the tool/resource/prompt implementer (the subscriber developer), not the framework — the framework documents best practices but cannot override platform limits.
-- The proxy communicates with Salesforce via a single `@RestResource` Apex REST endpoint that acts as a JSON-RPC dispatcher. The proxy POSTs each JSON-RPC message as the HTTP body; the Apex endpoint deserializes, routes to the correct handler, and returns the JSON-RPC response.
+- The proxy communicates with a subscriber-defined `@RestResource` Apex REST endpoint that acts as a JSON-RPC dispatcher. The proxy POSTs each JSON-RPC message as the HTTP body; the Apex endpoint deserializes, routes to the correct handler, and returns the JSON-RPC response. Subscribers may create multiple independent MCP endpoints with different capability registrations.
 - Binary content (images, audio) in MCP responses will be base64-encoded as strings, within Salesforce's Apex heap size limits.
 - The MCP Inspector (current version) is the primary external testing tool; compatibility with other MCP clients is expected but not individually validated in v1.
 
@@ -233,6 +233,12 @@ An administrator configures authentication so that only authorized AI agents can
 - Q: How should the framework handle duplicate tool/resource/prompt name registration? → A: Reject duplicate — throw an Apex exception at registration time with a clear error message identifying the conflicting name/URI.
 - Q: Where should MCP session state be stored between requests? → A: Proxy-side only — the proxy tracks all session state (protocol version, capabilities, lifecycle); the Apex REST endpoint is fully stateless per request with no session awareness.
 - Q: How should the framework handle uncatchable Apex `System.LimitException` (governor limit violations)? → A: Framework catches all catchable exceptions and returns MCP error results; the proxy detects non-JSON or HTTP 500 responses from Salesforce and translates them into MCP-compliant error results with a descriptive message.
-- Q: How should the proxy authenticate to the Salesforce REST endpoint? → A: OAuth device flow — the proxy initiates an interactive OAuth login to Salesforce at startup and caches the token.
+- Q: How should the proxy authenticate to the Salesforce REST endpoint? → A: Client Credentials flow — the proxy authenticates using client ID and secret from a pre-configured Connected App, with no interactive user involvement.
 - Q: What package type and namespace should be used? → A: Unlocked package (no namespace). Not a managed package — no namespace prefix on classes.
 - Q: How should the proxy handle network interruptions or HTTP failures between itself and Salesforce? → A: No retry — immediately return an MCP-compliant error to the client on any Salesforce HTTP failure. No retry logic in v1.
+- Q: Should the package use Custom Metadata Types or Custom Settings for configuration? → A: No — no Custom Metadata Types or Custom Settings. All configuration and framework behavior is resolved entirely in Apex code.
+- Q: Which OAuth flow should the proxy use for Salesforce authentication? → A: Client Credentials flow (not device flow) — server-to-server authentication without interactive user involvement.
+- Q: Who owns the `@RestResource` endpoint — the package or the subscriber developer? → A: Developer-owned — the subscriber writes their own `@RestResource`, calls framework registration methods inline, then delegates to `McpServer.handleRequest()`. This allows multiple independent MCP endpoints with different capability sets.
+- Q: How should developers define tool input schemas in Apex? → A: Map-based — developers return a `Map<String, Object>` mirroring JSON Schema structure. Tool arguments are received as `Map<String, Object>` from deserialized JSON-RPC params.
+- Q: Should the framework validate tool arguments against the declared schema? → A: Framework-enforced developer validation — the framework does not perform JSON Schema validation itself (Apex lacks good tooling), but the tool interface mandates a validate method that every tool MUST implement. The framework calls validate before execute and translates validation failures into MCP error results (`isError: true`).
+- Q: Should per-tool authorization scoping (403 for out-of-scope tools) be in v1? → A: No — connection-level auth only for v1. A valid client credentials token grants access to all registered tools/resources/prompts on the endpoint. Developers can achieve endpoint-level separation by deploying multiple `@RestResource` endpoints with different capability sets. Per-tool scoping deferred to future version.
