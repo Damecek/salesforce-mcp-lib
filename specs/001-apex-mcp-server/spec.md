@@ -125,7 +125,7 @@ An administrator configures authentication so that only authorized AI agents can
 - **FR-001**: System MUST implement the MCP 2025-11-25 specification's JSON-RPC 2.0 message format, including requests, responses, and notifications.
 - **FR-002**: System MUST implement the MCP lifecycle: initialization handshake (capability negotiation), operation, and shutdown.
 - **FR-003**: System MUST respond to `initialize` requests with the server's protocol version (`2025-11-25`), declared capabilities, and server information.
-- **FR-004**: System MUST support the `ping` method for connection health checks.
+- **FR-004**: System MUST support the `ping` method as an end-to-end health check — the proxy forwards the ping to the Salesforce Apex endpoint and returns the response, confirming full connectivity through to the org.
 - **FR-005**: System MUST return standard JSON-RPC error codes for protocol errors (e.g., `-32601` for method not found, `-32602` for invalid params, `-32700` for parse errors).
 
 **Tools Capability**
@@ -173,6 +173,8 @@ An administrator configures authentication so that only authorized AI agents can
 - Resource subscriptions (`resources/subscribe`, `resources/unsubscribe`, `notifications/resources/updated`)
 - Per-tool/resource/prompt authorization scoping (connection-level auth only in v1)
 - Streamable HTTP transport on the proxy's client-facing side (stdio only in v1; remote/cloud agent connectivity deferred to v2)
+- Request cancellation (`notifications/cancelled`) — Apex transactions cannot be reliably aborted once Salesforce begins processing; deferred to v2
+- Progress reporting (`notifications/progress`) — Apex REST is synchronous request/response; no mechanism to stream intermediate notifications during a running transaction; deferred to v2
 
 **Authentication**
 - **FR-027**: System MUST support authentication via OAuth 2.0 access tokens, leveraging Salesforce Connected Apps as the authorization mechanism. In v1, a valid token grants access to all tools, resources, and prompts registered on the endpoint (connection-level authorization). Per-tool scoping is deferred to a future version.
@@ -247,3 +249,6 @@ An administrator configures authentication so that only authorized AI agents can
 ### Session 2026-03-30
 
 - Q: Should the proxy support only stdio transport in v1, or also Streamable HTTP? → A: Stdio only — remote/cloud agent connectivity deferred to v2.
+- Q: Should request cancellation (`notifications/cancelled`) be supported in v1? → A: Out of scope for v1 — Apex transactions cannot be reliably aborted mid-execution; added to explicit out-of-scope list.
+- Q: Should `ping` be a proxy-only liveness check or an end-to-end Salesforce connectivity check? → A: End-to-end — proxy forwards ping to the Apex endpoint, confirming full Salesforce connectivity.
+- Q: Should progress reporting (`notifications/progress`) be supported in v1? → A: Out of scope for v1 — Apex REST is synchronous with no mechanism for mid-transaction streaming; added to explicit out-of-scope list.
