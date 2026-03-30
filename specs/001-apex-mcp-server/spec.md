@@ -172,6 +172,7 @@ An administrator configures authentication so that only authorized AI agents can
 - Resource templates (URI template discovery and expansion)
 - Resource subscriptions (`resources/subscribe`, `resources/unsubscribe`, `notifications/resources/updated`)
 - Per-tool/resource/prompt authorization scoping (connection-level auth only in v1)
+- Streamable HTTP transport on the proxy's client-facing side (stdio only in v1; remote/cloud agent connectivity deferred to v2)
 
 **Authentication**
 - **FR-027**: System MUST support authentication via OAuth 2.0 access tokens, leveraging Salesforce Connected Apps as the authorization mechanism. In v1, a valid token grants access to all tools, resources, and prompts registered on the endpoint (connection-level authorization). Per-tool scoping is deferred to a future version.
@@ -242,3 +243,7 @@ An administrator configures authentication so that only authorized AI agents can
 - Q: How should developers define tool input schemas in Apex? → A: Map-based — developers return a `Map<String, Object>` mirroring JSON Schema structure. Tool arguments are received as `Map<String, Object>` from deserialized JSON-RPC params.
 - Q: Should the framework validate tool arguments against the declared schema? → A: Framework-enforced developer validation — the framework does not perform JSON Schema validation itself (Apex lacks good tooling), but the tool interface mandates a validate method that every tool MUST implement. The framework calls validate before execute and translates validation failures into MCP error results (`isError: true`).
 - Q: Should per-tool authorization scoping (403 for out-of-scope tools) be in v1? → A: No — connection-level auth only for v1. A valid client credentials token grants access to all registered tools/resources/prompts on the endpoint. Developers can achieve endpoint-level separation by deploying multiple `@RestResource` endpoints with different capability sets. Per-tool scoping deferred to future version.
+
+### Session 2026-03-30
+
+- Q: Should the proxy support only stdio transport in v1, or also Streamable HTTP? → A: Stdio only — remote/cloud agent connectivity deferred to v2.
