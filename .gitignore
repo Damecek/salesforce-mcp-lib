@@ -1,12 +1,28 @@
+# Salesforce
 .sf
 .sfdx
 .sfhome
+
+# Environment / secrets
 .env
 .env.*
 !.env.example
-.codex/config.toml
-node_modules
-packages/*/dist
-packages/*/coverage
 
-.idea
+# Node.js
+node_modules/
+packages/*/dist/
+packages/*/coverage/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.tmp
+
+# Codex
+.codex/config.toml

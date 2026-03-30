@@ -1,0 +1,33 @@
+{
+  "name": "salesforce-mcp-lib",
+  "version": "1.0.2",
+  "description": "TypeScript stdio proxy bridging MCP clients to Salesforce Apex MCP endpoints via OAuth 2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "salesforce-mcp-lib": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "lint": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "dist/"
+  ],
+  "keywords": [
+    "salesforce",
+    "mcp",
+    "model-context-protocol",
+    "apex",
+    "ai-agent"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}
