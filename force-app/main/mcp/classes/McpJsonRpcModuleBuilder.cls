@@ -2,30 +2,36 @@
  * Configures a {@link JsonRpcModule} with the full set of MCP method handlers.
  *
  * <p>Registers handlers for session lifecycle ({@code initialize},
- * {@code notifications/initialized}, {@code ping}) and tool operations
- * ({@code tools/list}, {@code tools/call}). Resource and prompt handlers
- * will be added in later phases.</p>
+ * {@code notifications/initialized}, {@code ping}), tool operations
+ * ({@code tools/list}, {@code tools/call}), resource operations
+ * ({@code resources/list}, {@code resources/read},
+ * {@code resources/templates/list}, {@code resources/templates/call}),
+ * and prompt operations ({@code prompts/list}, {@code prompts/get}).</p>
  */
 public class McpJsonRpcModuleBuilder extends JsonRpcModuleBuilder {
 
     private final List<McpToolDefinition> tools;
-    private final List<Object> resources;
-    private final List<Object> prompts;
+    private final List<McpResourceDefinition> resources;
+    private final List<McpResourceTemplateDefinition> resourceTemplates;
+    private final List<McpPromptDefinition> prompts;
 
     /**
      * Constructs the module builder with the server's registered definitions.
      *
-     * @param tools     The list of registered tool definitions.
-     * @param resources The list of registered resource definitions (forward compatibility).
-     * @param prompts   The list of registered prompt definitions (forward compatibility).
+     * @param tools             The list of registered tool definitions.
+     * @param resources         The list of registered resource definitions.
+     * @param resourceTemplates The list of registered resource template definitions.
+     * @param prompts           The list of registered prompt definitions.
      */
     public McpJsonRpcModuleBuilder(
         List<McpToolDefinition> tools,
-        List<Object> resources,
-        List<Object> prompts
+        List<McpResourceDefinition> resources,
+        List<McpResourceTemplateDefinition> resourceTemplates,
+        List<McpPromptDefinition> prompts
     ) {
         this.tools = tools;
         this.resources = resources;
+        this.resourceTemplates = resourceTemplates;
         this.prompts = prompts;
     }
 
@@ -35,10 +41,23 @@ public class McpJsonRpcModuleBuilder extends JsonRpcModuleBuilder {
      * @param module The JSON-RPC module to configure with MCP handlers.
      */
     public override void configure(JsonRpcModule module) {
-        module.register(new McpInitializeHandler(this.tools, this.resources, this.prompts));
+        // Lifecycle handlers
+        module.register(new McpInitializeHandler(this.tools, this.resources, this.resourceTemplates, this.prompts));
         module.register(new McpNotificationHandler('notifications/initialized'));
         module.register(new McpPingHandler());
+
+        // Tool handlers
         module.register(new McpToolsListHandler(this.tools));
         module.register(new McpToolsCallHandler(this.tools));
+
+        // Resource handlers
+        module.register(new McpResourcesListHandler(this.resources));
+        module.register(new McpResourcesReadHandler(this.resources));
+        module.register(new McpResourcesTemplatesListHandler(this.resourceTemplates));
+        module.register(new McpResourcesTemplatesCallHandler(this.resourceTemplates));
+
+        // Prompt handlers
+        module.register(new McpPromptsListHandler(this.prompts));
+        module.register(new McpPromptsGetHandler(this.prompts));
     }
 }

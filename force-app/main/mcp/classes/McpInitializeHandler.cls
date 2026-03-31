@@ -3,8 +3,8 @@
  *
  * <p>Negotiates the session by returning the server's protocol version,
  * advertised capabilities, and identifying information. Capabilities are
- * built dynamically from the tool, resource, and prompt definitions
- * registered with the server.</p>
+ * built dynamically from the tool, resource, resource template, and prompt
+ * definitions registered with the server.</p>
  */
 public class McpInitializeHandler extends JsonRpcMethodHandler {
 
@@ -13,20 +13,28 @@ public class McpInitializeHandler extends JsonRpcMethodHandler {
     private static final String SERVER_VERSION = '1.1.0';
 
     private final List<McpToolDefinition> tools;
-    private final List<Object> resources;
-    private final List<Object> prompts;
+    private final List<McpResourceDefinition> resources;
+    private final List<McpResourceTemplateDefinition> resourceTemplates;
+    private final List<McpPromptDefinition> prompts;
 
     /**
      * Constructs the initialize handler with the server's registered capabilities.
      *
-     * @param tools     The list of registered tool definitions (may be empty).
-     * @param resources The list of registered resource definitions (may be empty).
-     * @param prompts   The list of registered prompt definitions (may be empty).
+     * @param tools             The list of registered tool definitions (may be empty).
+     * @param resources         The list of registered resource definitions (may be empty).
+     * @param resourceTemplates The list of registered resource template definitions (may be empty).
+     * @param prompts           The list of registered prompt definitions (may be empty).
      */
-    public McpInitializeHandler(List<McpToolDefinition> tools, List<Object> resources, List<Object> prompts) {
+    public McpInitializeHandler(
+        List<McpToolDefinition> tools,
+        List<McpResourceDefinition> resources,
+        List<McpResourceTemplateDefinition> resourceTemplates,
+        List<McpPromptDefinition> prompts
+    ) {
         super('initialize', McpInitializeParams.class, McpInitializeResult.class);
         this.tools = tools;
         this.resources = resources;
+        this.resourceTemplates = resourceTemplates;
         this.prompts = prompts;
     }
 
@@ -61,7 +69,9 @@ public class McpInitializeHandler extends JsonRpcMethodHandler {
         if (this.tools != null && !this.tools.isEmpty()) {
             capabilities.put('tools', new Map<String, Object>());
         }
-        if (this.resources != null && !this.resources.isEmpty()) {
+        Boolean hasResources = (this.resources != null && !this.resources.isEmpty())
+            || (this.resourceTemplates != null && !this.resourceTemplates.isEmpty());
+        if (hasResources) {
             capabilities.put('resources', new Map<String, Object>());
         }
         if (this.prompts != null && !this.prompts.isEmpty()) {
