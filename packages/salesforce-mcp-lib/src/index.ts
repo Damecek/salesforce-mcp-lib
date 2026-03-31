@@ -15,7 +15,7 @@ import { createLogger, startStdioListener } from './stdio.js';
  * Redact known secrets from a string so they never appear in logs.
  * Replaces any occurrence of the client_secret value with "****".
  */
-function redactSecrets(text: string, secrets: string[]): string {
+export function redactSecrets(text: string, secrets: string[]): string {
   let redacted = text;
   for (const secret of secrets) {
     if (secret.length > 0) {
