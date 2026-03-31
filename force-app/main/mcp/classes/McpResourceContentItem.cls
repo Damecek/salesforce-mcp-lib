@@ -16,6 +16,6 @@ public class McpResourceContentItem {
     /** Text content. Mutually exclusive with {@link #blob}. */
     public String text;
 
-    /** Base64-encoded binary content. Mutually exclusive with {@link #text}. */
-    public String blob;
+    /** Base64-encoded binary content. Mutually exclusive with {@link #text}. Serialized as "blob" on the wire. */
+    public String blobData;
 }

@@ -128,11 +128,11 @@ public class JsonRpcExecutionResult {
      */
     private static String serializeError(JsonRpcError err) {
         String msgEscaped = err.message.replace('"', '\\"');
-        String json = '{"code":' + err.code + ',"message":"' + msgEscaped + '"';
+        String errorStr = '{"code":' + err.code + ',"message":"' + msgEscaped + '"';
         if (err.data != null) {
-            json += ',"data":' + JSON.serialize(err.data, true);
+            errorStr += ',"data":' + JSON.serialize(err.data, true);
         }
-        json += '}';
-        return json;
+        errorStr += '}';
+        return errorStr;
     }
 }

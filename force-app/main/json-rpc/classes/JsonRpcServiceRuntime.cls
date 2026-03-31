@@ -35,13 +35,13 @@ public class JsonRpcServiceRuntime {
      * @return An {@link JsonRpcExecutionResult} containing the response(s).
      */
     public static JsonRpcExecutionResult execute(
-        String json,
+        String rawJson,
         JsonRpcModule module,
         JsonRpcServiceRuntimeOptions options
     ) {
         Object parsed;
         try {
-            parsed = JSON.deserializeUntyped(json);
+            parsed = JSON.deserializeUntyped(rawJson);
         } catch (Exception e) {
             JsonRpcResponse resp = JsonRpcResponse.failure(
                 JsonRpcIdValue.fromNull(),
@@ -53,6 +53,17 @@ public class JsonRpcServiceRuntime {
         // ── Batch request ─────────────────────────────────────────
         if (parsed instanceof List<Object>) {
             List<Object> batch = (List<Object>) parsed;
+
+            // Empty array is Invalid Request per JSON-RPC 2.0 spec.
+            if (batch.isEmpty()) {
+                return JsonRpcExecutionResult.singleResponse(
+                    JsonRpcResponse.failure(
+                        JsonRpcIdValue.fromNull(),
+                        JsonRpcError.invalidRequest('Empty batch array')
+                    )
+                );
+            }
+
             List<JsonRpcResponse> responses = new List<JsonRpcResponse>();
 
             for (Integer i = 0; i < batch.size(); i++) {
@@ -75,6 +86,11 @@ public class JsonRpcServiceRuntime {
                 if (!isNotification) {
                     responses.add(resp);
                 }
+            }
+
+            // All-notification batches produce no response per spec.
+            if (responses.isEmpty()) {
+                return JsonRpcExecutionResult.noResponse();
             }
 
             return JsonRpcExecutionResult.batchResponse(responses);
@@ -164,11 +180,21 @@ public class JsonRpcServiceRuntime {
             return handler.invoke(context);
 
         } catch (Exception e) {
+            // Handle well-known inner exceptions first.
+            if (e instanceof InvalidParamsException) {
+                return JsonRpcResponse.failure(
+                    requestId,
+                    JsonRpcError.invalidParams(e.getMessage())
+                );
+            }
+
             // Attempt custom exception mapping.
             if (options != null && options.exceptionMapper != null) {
                 try {
                     JsonRpcError mapped = options.exceptionMapper.mapException(e);
-                    return JsonRpcResponse.failure(requestId, mapped);
+                    if (mapped != null) {
+                        return JsonRpcResponse.failure(requestId, mapped);
+                    }
                 } catch (Exception mapperEx) {
                     // Mapper itself failed; fall through to generic error.
                 }

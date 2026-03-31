@@ -91,10 +91,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testValidJsonParsedCorrectly() {
-        String json = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"hello"},"id":1}';
+        String requestJson = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"hello"},"id":1}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse, 'Should have a response for a request with id');
         System.assertEquals(false, result.isBatch, 'Single request should not be batch');
@@ -109,10 +109,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testSingleRequestRoutesToCorrectHandler() {
-        String json = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"routed"},"id":"abc"}';
+        String requestJson = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"routed"},"id":"abc"}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -128,13 +128,13 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testBatchRequestProcessesAllRequests() {
-        String json = '['
+        String requestJson = '['
             + '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"first"},"id":1},'
             + '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"second"},"id":2}'
             + ']';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse, 'Batch should have a response');
         System.assert(result.isBatch, 'Should be flagged as batch');
@@ -149,10 +149,10 @@ public class JsonRpcServiceRuntimeTest {
     @IsTest
     static void testNotificationProducesNoResponse() {
         // A notification is a request without an "id" field
-        String json = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"notify"}}';
+        String requestJson = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"notify"}}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assertEquals(false, result.hasResponse, 'Notification should produce no response');
     }
@@ -161,10 +161,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testParseErrorForMalformedJson() {
-        String json = '{this is not valid json!!!';
+        String requestJson = '{this is not valid json!!!';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse, 'Parse error should produce a response');
         System.assertEquals(1, result.responses.size());
@@ -179,10 +179,10 @@ public class JsonRpcServiceRuntimeTest {
     @IsTest
     static void testInvalidRequestMissingJsonrpcField() {
         // Valid JSON but missing required "jsonrpc" field
-        String json = '{"method":"test/echo","id":1}';
+        String requestJson = '{"method":"test/echo","id":1}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -193,10 +193,10 @@ public class JsonRpcServiceRuntimeTest {
     @IsTest
     static void testInvalidRequestMissingMethodField() {
         // Valid JSON but missing required "method" field
-        String json = '{"jsonrpc":"2.0","id":1}';
+        String requestJson = '{"jsonrpc":"2.0","id":1}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -208,10 +208,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testMethodNotFound() {
-        String json = '{"jsonrpc":"2.0","method":"nonexistent/method","id":1}';
+        String requestJson = '{"jsonrpc":"2.0","method":"nonexistent/method","id":1}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -223,10 +223,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testInvalidParamsViaInnerException() {
-        String json = '{"jsonrpc":"2.0","method":"test/badparams","id":1}';
+        String requestJson = '{"jsonrpc":"2.0","method":"test/badparams","id":1}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -242,10 +242,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testInternalErrorForUnexpectedException() {
-        String json = '{"jsonrpc":"2.0","method":"test/throw","id":1}';
+        String requestJson = '{"jsonrpc":"2.0","method":"test/throw","id":1}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -257,10 +257,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testUnknownMethodDispatchReturnsMethodNotFound() {
-        String json = '{"jsonrpc":"2.0","method":"tools/unknown","id":42}';
+        String requestJson = '{"jsonrpc":"2.0","method":"tools/unknown","id":42}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse);
         System.assertEquals(1, result.responses.size());
@@ -278,10 +278,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testMalformedJsonReturnsParseError() {
-        String json = '{"jsonrpc": "2.0", method: test/echo}';
+        String requestJson = '{"jsonrpc": "2.0", method: test/echo}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -291,10 +291,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testEmptyStringReturnsParseError() {
-        String json = '';
+        String requestJson = '';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -306,12 +306,12 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testCustomExceptionMapperConvertsException() {
-        String json = '{"jsonrpc":"2.0","method":"test/throw","id":1}';
+        String requestJson = '{"jsonrpc":"2.0","method":"test/throw","id":1}';
         JsonRpcModule module = buildModule();
         JsonRpcServiceRuntimeOptions options = new JsonRpcServiceRuntimeOptions();
         options.exceptionMapper = new TestExceptionMapper();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, options);
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, options);
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -340,8 +340,8 @@ public class JsonRpcServiceRuntimeTest {
 
         // InvalidParamsHandler throws InvalidParamsException, which is not
         // IllegalArgumentException, so the mapper returns null
-        String json = '{"jsonrpc":"2.0","method":"test/badparams","id":1}';
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, options);
+        String requestJson = '{"jsonrpc":"2.0","method":"test/badparams","id":1}';
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, options);
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -356,7 +356,7 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testBatchWithMixedRequestsAndErrors() {
-        String json = '['
+        String requestJson = '['
             + '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"ok"},"id":1},'       // valid
             + '{"jsonrpc":"2.0","method":"nonexistent/method","id":2},'                      // method not found
             + '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"notify"}},'           // notification (no id)
@@ -364,7 +364,7 @@ public class JsonRpcServiceRuntimeTest {
             + ']';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse, 'Batch should have a response');
         System.assert(result.isBatch, 'Should be flagged as batch');
@@ -390,13 +390,13 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testBatchWithAllNotificationsProducesNoResponse() {
-        String json = '['
+        String requestJson = '['
             + '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"a"}},'
             + '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"b"}}'
             + ']';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assertEquals(false, result.hasResponse,
             'Batch of all notifications should produce no response');
@@ -407,10 +407,10 @@ public class JsonRpcServiceRuntimeTest {
     @IsTest
     static void testRequestWithNullIdReturnsResponse() {
         // JSON-RPC spec: id of null is valid (not a notification)
-        String json = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"null-id"},"id":null}';
+        String requestJson = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"null-id"},"id":null}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse, 'Request with id:null should produce a response');
         JsonRpcResponse resp = result.responses[0];
@@ -420,10 +420,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testRequestWithStringIdPreservesId() {
-        String json = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"str"},"id":"req-42"}';
+        String requestJson = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"str"},"id":"req-42"}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -433,10 +433,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testRequestWithIntegerIdPreservesId() {
-        String json = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"int"},"id":99}';
+        String requestJson = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"int"},"id":99}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -449,13 +449,13 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testInternalErrorWhenHandlerThrowsWithNoMapper() {
-        String json = '{"jsonrpc":"2.0","method":"test/throw","id":7}';
+        String requestJson = '{"jsonrpc":"2.0","method":"test/throw","id":7}';
         JsonRpcModule module = buildModule();
         JsonRpcServiceRuntimeOptions options = new JsonRpcServiceRuntimeOptions();
         // Explicitly null mapper — runtime should fall back to generic internal error
         options.exceptionMapper = null;
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, options);
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, options);
 
         System.assert(result.hasResponse);
         JsonRpcResponse resp = result.responses[0];
@@ -466,10 +466,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testBatchWithSingleElementIsStillBatch() {
-        String json = '[{"jsonrpc":"2.0","method":"test/echo","params":{"value":"solo"},"id":1}]';
+        String requestJson = '[{"jsonrpc":"2.0","method":"test/echo","params":{"value":"solo"},"id":1}]';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse);
         System.assert(result.isBatch, 'Array with single element should be treated as batch');
@@ -479,10 +479,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testEmptyBatchArrayReturnsInvalidRequest() {
-        String json = '[]';
+        String requestJson = '[]';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
 
         System.assert(result.hasResponse, 'Empty batch should produce an error response');
         System.assertEquals(1, result.responses.size());
@@ -495,10 +495,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testToJsonProducesValidWireFormat() {
-        String json = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"wire"},"id":1}';
+        String requestJson = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"wire"},"id":1}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
         String wireJson = result.toJson();
 
         System.assert(wireJson.contains('"jsonrpc":"2.0"'), 'Wire JSON should contain jsonrpc version');
@@ -508,10 +508,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testErrorResponseToJsonProducesValidWireFormat() {
-        String json = '{"jsonrpc":"2.0","method":"nonexistent","id":1}';
+        String requestJson = '{"jsonrpc":"2.0","method":"nonexistent","id":1}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
         String wireJson = result.toJson();
 
         System.assert(wireJson.contains('"jsonrpc":"2.0"'), 'Wire JSON should contain jsonrpc version');
@@ -521,13 +521,13 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testBatchToJsonProducesArrayWireFormat() {
-        String json = '['
+        String requestJson = '['
             + '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"a"},"id":1},'
             + '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"b"},"id":2}'
             + ']';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
         String wireJson = result.toJson();
 
         System.assert(wireJson.startsWith('['), 'Batch wire JSON should start with [');
@@ -536,10 +536,10 @@ public class JsonRpcServiceRuntimeTest {
 
     @IsTest
     static void testNotificationToJsonProducesEmptyString() {
-        String json = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"silent"}}';
+        String requestJson = '{"jsonrpc":"2.0","method":"test/echo","params":{"value":"silent"}}';
         JsonRpcModule module = buildModule();
 
-        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(json, module, defaultOptions());
+        JsonRpcExecutionResult result = JsonRpcServiceRuntime.execute(requestJson, module, defaultOptions());
         String wireJson = result.toJson();
 
         System.assertEquals('', wireJson, 'Notification should produce empty wire string');

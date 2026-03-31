@@ -40,7 +40,7 @@ public class McpResourceTest {
             McpResourceContentItem item = new McpResourceContentItem();
             item.uri = this.uri;
             item.mimeType = this.mimeType;
-            item.blob = 'dGVzdA==';  // base64 "test"
+            item.blobData = 'dGVzdA==';  // base64 "test"
             result.contents = new List<McpResourceContentItem>{ item };
             return result;
         }

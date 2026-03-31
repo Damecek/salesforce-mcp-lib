@@ -86,8 +86,8 @@ public class McpResourcesTemplatesCallHandler extends JsonRpcMethodHandler {
                 if (item.text != null) {
                     itemMap.put('text', item.text);
                 }
-                if (item.blob != null) {
-                    itemMap.put('blob', item.blob);
+                if (item.blobData != null) {
+                    itemMap.put('blob', item.blobData);
                 }
                 contentsWire.add(itemMap);
             }
