@@ -125,6 +125,7 @@ As the project maintainer, I want every drafted post to be automatically checked
 - What happens when a post topic has fewer than 2 supporting claims in the proof pack? The system should warn the maintainer and suggest expanding the proof pack or adjusting the topic.
 - How does the system handle the project maintainer providing additional context or corrections mid-series? Commands should accept optional user input that overrides or supplements repo-extracted information.
 - What happens if the repo contains sensitive information (client secrets in test fixtures, internal org URLs)? The proof extractor must exclude content from `.env`, credential files, and test fixtures containing secrets.
+- What happens when a content command is re-run (e.g., `/draft-post 3` a second time)? The system overwrites the previous output file in place. Git history preserves prior versions; no in-system versioning or archiving is performed.
 
 ## Requirements *(mandatory)*
 
@@ -174,6 +175,7 @@ As the project maintainer, I want every drafted post to be automatically checked
 - **FR-022**: System MUST automatically verify every factual claim in a draft against the proof pack (`claims.md`) and flag ungrounded claims.
 - **FR-023**: System MUST automatically check every draft for: word count (150–300), opening quality (curiosity without clickbait), absence of forbidden phrases, presence of a business outcome, and presence of a repo fact.
 - **FR-024**: Every quality check failure MUST include the specific text that triggered the failure and a suggested fix.
+- **FR-025-GR**: Quality guardrails MUST be implemented as Claude Code hooks (`afterWrite` events in `.claude/settings.json`) that auto-trigger whenever a content file under `specs/002-linkedin-content-system/content/` is written. There is no separate manual quality-check command; all validation runs automatically on write.
 
 #### Content Rules (Enforced Across All Outputs)
 
@@ -181,14 +183,37 @@ As the project maintainer, I want every drafted post to be automatically checked
 - **FR-026**: Tone MUST be direct, technical, and free of marketing fluff.
 - **FR-027**: System MUST NOT generate content claims that cannot be traced to the repository.
 
+#### Command Dependency Enforcement
+
+- **FR-028**: Each content command MUST check for required prerequisite artifacts before executing. If a prerequisite is missing, the command MUST hard-block (refuse to run) and display an error naming the missing artifact and the command to produce it.
+- **FR-029**: Dependency chain: `/series-plan` has no prerequisites → `/proof-pack` has no prerequisites → `/draft-post N` requires both `series-plan.md` and `claims.md` → `/repurpose-post N` requires the corresponding `post-N/` drafts → `/comment-bank` requires `claims.md`. Hook generation runs within `/draft-post` and shares its prerequisites.
+
 ### Key Entities
 
-- **Series Plan**: The 5-topic editorial roadmap with ordering, core messages, CTAs, and hooks. One per content campaign. Stored as `series-plan.md`.
-- **Proof Pack**: Collection of verifiable claims extracted from the repository, each with source file citation and excerpt. One per campaign. Stored as `claims.md`.
-- **Post Draft**: A LinkedIn post in one of 3 style variants (technical, business, founder), associated with a series topic number (1–5). Multiple variants per topic.
-- **Hook Set**: 5 opening-line variants for a single post topic, each using a distinct framing angle.
-- **Comment Bank**: Organized collection of pre-written replies grouped by anticipated question category. One per campaign.
-- **Derivative Format**: A repurposed version of a post draft in one of 4 formats (short, carousel, comment, DM).
+All generated content artifacts are stored under `specs/002-linkedin-content-system/content/`. Directory layout:
+
+```
+specs/002-linkedin-content-system/content/
+├── series-plan.md
+├── claims.md
+├── comment-bank.md
+├── posts/
+│   ├── post-1/          (one directory per series topic)
+│   │   ├── draft-technical.md
+│   │   ├── draft-business.md
+│   │   ├── draft-founder.md
+│   │   ├── hooks.md
+│   │   └── derivatives.md
+│   ├── post-2/
+│   └── ...post-5/
+```
+
+- **Series Plan**: The 5-topic editorial roadmap with ordering, core messages, CTAs, and hooks. One per content campaign. Stored as `content/series-plan.md`.
+- **Proof Pack**: Collection of verifiable claims extracted from the repository, each with source file citation and excerpt. One per campaign. Stored as `content/claims.md`.
+- **Post Draft**: A LinkedIn post in one of 3 style variants (technical, business, founder), associated with a series topic number (1–5). Stored as `content/posts/post-N/draft-{variant}.md`.
+- **Hook Set**: 5 opening-line variants for a single post topic, each using a distinct framing angle. Stored as `content/posts/post-N/hooks.md`.
+- **Comment Bank**: Organized collection of pre-written replies grouped by anticipated question category. One per campaign. Stored as `content/comment-bank.md`.
+- **Derivative Format**: A repurposed version of a post draft in one of 4 formats (short, carousel, comment, DM). Stored as `content/posts/post-N/derivatives.md`.
 
 ## Success Criteria *(mandatory)*
 
@@ -212,4 +237,15 @@ As the project maintainer, I want every drafted post to be automatically checked
 - All content is written in English. The maintainer may manually translate or adapt for other languages.
 - The series plan follows a fixed narrative arc: (1) What this is, (2) Business problem it solves, (3) How it works technically, (4) Why it matters for teams, (5) How to use it.
 - Claude Code is the primary authoring environment. All skills, commands, and hooks operate within the Claude Code workflow and do not require external tools beyond the repository and standard CLI.
+- The entire content system is implemented as pure Claude Code markdown prompt files (`.claude/commands/*.md`, `.claude/skills/*.md`, hook definitions in `.claude/settings.json`). No TypeScript scripts, shell scripts, or compiled code components are introduced. All logic — including quality guardrails, claim verification, and style checks — relies on LLM reasoning within markdown prompts.
 - Post engagement metrics (SC-005, SC-006) are measured manually by the maintainer after publication. The content system does not include analytics integration.
+
+## Clarifications
+
+### Session 2026-03-31
+
+- Q: How should this content system be implemented — as pure Claude Code markdown prompts or with TypeScript/shell script components? → A: Pure markdown — all skills, commands, and hooks are markdown prompt files only (no TypeScript/shell scripts).
+- Q: Where should generated content artifacts be stored? → A: Feature spec directory: `specs/002-linkedin-content-system/content/` (co-located with spec, plan, tasks).
+- Q: Should quality guardrail hooks run automatically or only when the user explicitly invokes a check command? → A: Auto-only — Claude Code hooks in settings.json auto-trigger after every content file write; no manual command.
+- Q: When a content command is re-run, should it overwrite the previous output or preserve it? → A: Overwrite — always replace with latest; git history preserves prior versions.
+- Q: Should commands enforce dependency ordering or allow execution with a warning? → A: Hard-block — refuse to run and tell the user which prerequisite command to run first.
