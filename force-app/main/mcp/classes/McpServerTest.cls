@@ -117,6 +117,32 @@ public class McpServerTest {
             'Server version should be 1.1.0');
     }
 
+    // ── 1b. Initialize negotiates older client protocol version ───────
+
+    @IsTest
+    static void testInitializeNegotiatesOlderProtocolVersion() {
+        McpServer server = buildToolServer();
+        String json = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"OldClient","version":"0.14.0"}}}';
+
+        Map<String, Object> response = executeRequest(server, json);
+
+        Map<String, Object> result = (Map<String, Object>) response.get('result');
+        System.assertEquals('2024-11-05', result.get('protocolVersion'),
+            'Server should echo back a supported older protocol version');
+    }
+
+    @IsTest
+    static void testInitializeReturnsLatestForUnknownProtocolVersion() {
+        McpServer server = buildToolServer();
+        String json = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"9999-01-01","capabilities":{},"clientInfo":{"name":"FutureClient","version":"99.0"}}}';
+
+        Map<String, Object> response = executeRequest(server, json);
+
+        Map<String, Object> result = (Map<String, Object>) response.get('result');
+        System.assertEquals('2025-11-25', result.get('protocolVersion'),
+            'Server should return latest version for unsupported client version');
+    }
+
     // ── 2. Initialize with no capabilities ────────────────────────────
 
     @IsTest

@@ -8,7 +8,10 @@
  */
 public class McpInitializeHandler extends JsonRpcMethodHandler {
 
-    private static final String PROTOCOL_VERSION = '2025-11-25';
+    private static final String LATEST_PROTOCOL_VERSION = '2025-11-25';
+    private static final Set<String> SUPPORTED_PROTOCOL_VERSIONS = new Set<String>{
+        '2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'
+    };
     private static final String SERVER_NAME = 'SalesforceMcpServer';
     private static final String SERVER_VERSION = '1.1.0';
 
@@ -46,8 +49,9 @@ public class McpInitializeHandler extends JsonRpcMethodHandler {
      * @return A successful {@link JsonRpcResponse} wrapping the {@link McpInitializeResult}.
      */
     public override JsonRpcResponse invoke(JsonRpcInvocationContext context) {
+        String clientVersion = getClientProtocolVersion(context.rawRequest);
         McpInitializeResult result = new McpInitializeResult();
-        result.protocolVersion = PROTOCOL_VERSION;
+        result.protocolVersion = negotiateProtocolVersion(clientVersion);
         result.capabilities = buildCapabilities();
 
         McpInitializeServerInfo serverInfo = new McpInitializeServerInfo();
@@ -56,6 +60,43 @@ public class McpInitializeHandler extends JsonRpcMethodHandler {
         result.serverInfo = serverInfo;
 
         return JsonRpcResponse.success(context.requestId, result);
+    }
+
+    /**
+     * Extracts the client's requested protocol version from the raw request.
+     *
+     * @param rawRequest The full deserialized JSON-RPC request map.
+     * @return The client's protocol version string, or null if absent.
+     */
+    private String getClientProtocolVersion(Map<String, Object> rawRequest) {
+        if (rawRequest == null) {
+            return null;
+        }
+        Object paramsObj = rawRequest.get('params');
+        if (paramsObj instanceof Map<String, Object>) {
+            Map<String, Object> paramsMap = (Map<String, Object>) paramsObj;
+            Object version = paramsMap.get('protocolVersion');
+            return version instanceof String ? (String) version : null;
+        }
+        return null;
+    }
+
+    /**
+     * Negotiates the protocol version.
+     *
+     * <p>If the client's requested version is among the server's supported
+     * versions, the server echoes it back (backward compatibility). Otherwise
+     * the server returns its latest supported version and lets the client
+     * decide whether to continue.</p>
+     *
+     * @param clientVersion The protocol version string sent by the client (may be null).
+     * @return The negotiated protocol version string.
+     */
+    private String negotiateProtocolVersion(String clientVersion) {
+        if (clientVersion != null && SUPPORTED_PROTOCOL_VERSIONS.contains(clientVersion)) {
+            return clientVersion;
+        }
+        return LATEST_PROTOCOL_VERSION;
     }
 
     /**
