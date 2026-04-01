@@ -256,13 +256,13 @@
 
 ### C-014: Four-layer authorization model
 
-- **Statement**: The framework inherits a four-layer authorization model: API access (Connected App OAuth scopes), object/field access (Profile + Permission Sets), record access (OWD + Sharing Rules), and tool authorization (subscriber-implemented custom logic).
+- **Statement**: The framework inherits a four-layer authorization model: API access (External Client App OAuth scopes), object/field access (Profile + Permission Sets), record access (OWD + Sharing Rules), and tool authorization (subscriber-implemented custom logic).
 - **Source**: `docs/mcp-authorization-feasibility-report-2026-03-22.md`
 - **Excerpt**:
   ```
   | Layer              | Enforcement        | Mechanism                          |
   |---|---|---|
-  | API Access         | Salesforce Platform | Connected App OAuth scopes        |
+  | API Access         | Salesforce Platform | External Client App OAuth scopes        |
   | Object/Field Access| Salesforce Platform | Profile + Permission Sets         |
   | Record Access      | Salesforce Platform | OWD + Sharing Rules               |
   | Tool Authorization | Subscriber Code    | Custom logic in validate/execute  |

@@ -141,7 +141,7 @@ The framework inherits a four-layer authorization model:
 
 | Layer | Enforcement | Mechanism |
 |---|---|---|
-| API Access | Salesforce Platform | Connected App OAuth scopes |
+| API Access | Salesforce Platform | External Client App OAuth scopes |
 | Object/Field Access | Salesforce Platform | Profile + Permission Sets |
 | Record Access | Salesforce Platform | OWD + Sharing Rules |
 | Tool Authorization | Subscriber Code | Custom logic in `validate()`/`execute()` |

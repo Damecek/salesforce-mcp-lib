@@ -78,7 +78,7 @@ None — this is a root command with no dependencies.
 1. Scan the 7 repository areas identified in research.md (Task 5) in priority order.
 2. For each area, extract factual claims: code patterns, design decisions, capability statements, configuration choices.
 3. For each claim, record: unique ID, category, statement, source file path, verbatim excerpt, business-value translation.
-4. Exclude content from `.env`, credential files, connected app configurations.
+4. Exclude content from `.env`, credential files, external client app configurations.
 5. Organize claims into 6 categories: package-purpose, architecture, developer-experience, security, deployment, differentiation.
 6. Validate: at least 15 claims, all 6 categories represented, every claim has a verifiable source.
 

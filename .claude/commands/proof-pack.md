@@ -54,7 +54,7 @@ Organize all claims into these 6 mandatory categories (every category must have 
 
 **NEVER** extract claims from:
 - `.env` files or `.env.*` files
-- Credential files, connected app configurations
+- Credential files, external client app configurations
 - Any file containing API keys, secrets, passwords, or tokens
 
 If you encounter such a file, silently skip it and log the exclusion in a comment at the bottom of the output file.

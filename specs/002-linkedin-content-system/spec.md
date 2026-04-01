@@ -143,7 +143,7 @@ As the project maintainer, I want every drafted post to be automatically checked
 - **FR-005**: System MUST scan the repository's source files, specs, examples, configuration, and documentation to extract verifiable factual claims.
 - **FR-006**: Each extracted claim MUST cite a specific source file path and include a quotable excerpt.
 - **FR-007**: System MUST produce at least 15 claims covering: package purpose, architecture decisions, developer experience, security model, deployment model, and differentiation from alternatives.
-- **FR-008**: System MUST exclude content from files likely containing secrets (`.env`, `credentials.json`, connected app configurations with real consumer keys).
+- **FR-008**: System MUST exclude content from files likely containing secrets (`.env`, `credentials.json`, external client app configurations with real consumer keys).
 - **FR-009**: System MUST translate technical repo facts into business-value statements: OAuth client credentials becomes "secure enterprise authentication," zero npm dependencies becomes "minimal supply-chain risk," Apex framework becomes "reusable integration foundation."
 
 #### Post Drafting

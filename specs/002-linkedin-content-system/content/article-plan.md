@@ -91,7 +91,7 @@
 - **Purpose**: Explain why the authorization model is a differentiator — AI agents run under the same security as human users, with zero new infrastructure.
 - **Target words**: 350
 - **Key points**:
-  - Four-layer authorization model: API Access (Connected App OAuth scopes), Object/Field Access (Profile + Permission Sets), Record Access (OWD + Sharing Rules), Tool Authorization (custom `validate()` logic)
+  - Four-layer authorization model: API Access (External Client App OAuth scopes), Object/Field Access (Profile + Permission Sets), Record Access (OWD + Sharing Rules), Tool Authorization (custom `validate()` logic)
   - Three of four layers are Salesforce-platform-enforced — no framework code needed
   - OAuth 2.0 client credentials flow: proxy authenticates at startup, caches token, re-authenticates transparently on 401 INVALID_SESSION_ID
   - Secret redaction: `client_secret` replaced with `"****"` at the logging layer before any message reaches stderr

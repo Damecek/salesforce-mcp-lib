@@ -11,7 +11,7 @@ When I started building Salesforce MCP Library, I assumed I'd need to design an 
 
 Then I realized Salesforce already solved this problem — years ago, for human users.
 
-Connected App OAuth scopes already control API access. Profiles and Permission Sets already enforce object and field visibility. OWD and Sharing Rules already govern record-level access. All I had to do was make sure the library didn't bypass any of it. So that's exactly what I did: nothing new for security.
+External Client App OAuth scopes already control API access. Profiles and Permission Sets already enforce object and field visibility. OWD and Sharing Rules already govern record-level access. All I had to do was make sure the library didn't bypass any of it. So that's exactly what I did: nothing new for security.
 
 The only addition is a `validate()` method that developers implement on their tool classes — a place for business-specific checks that go beyond what the platform enforces declaratively. Everything else is inherited.
 

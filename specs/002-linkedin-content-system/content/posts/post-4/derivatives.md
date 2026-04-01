@@ -20,7 +20,7 @@ With Salesforce MCP Library, the answer is simple — the same way you control w
 With Salesforce MCP Library: "The same way we control what our users can access." No new security system required.
 
 ### Slide 3: Four Authorization Layers — Already Built
-Connected App OAuth scopes limit API access. Profiles and Permission Sets control object and field visibility. OWD and Sharing Rules determine record-level reach. Custom validation logic covers everything else.
+External Client App OAuth scopes limit API access. Profiles and Permission Sets control object and field visibility. OWD and Sharing Rules determine record-level reach. Custom validation logic covers everything else.
 
 ### Slide 4: Authentication That Handles Itself
 The OAuth 2.0 client credentials flow manages authentication with automatic token caching. No interactive login flows to build or maintain.

@@ -24,7 +24,7 @@ No new security system required.
 
 ## Four Authorization Layers — Already Built
 
-**Connected App OAuth scopes** limit API access.
+**External Client App OAuth scopes** limit API access.
 
 **Profiles and Permission Sets** control object and field visibility.
 
