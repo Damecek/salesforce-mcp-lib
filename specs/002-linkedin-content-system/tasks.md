@@ -25,7 +25,7 @@
 
 **Purpose**: Create the content output directory structure required by all content-generating commands.
 
-- [ ] T001 Create content output directory tree at `specs/002-linkedin-content-system/content/` including subdirectories `posts/post-1/`, `posts/post-2/`, `posts/post-3/`, `posts/post-4/`, and `posts/post-5/`
+- [X] T001 Create content output directory tree at `specs/002-linkedin-content-system/content/` including subdirectories `posts/post-1/`, `posts/post-2/`, `posts/post-3/`, `posts/post-4/`, and `posts/post-5/`
 
 ---
 
@@ -47,7 +47,7 @@ This feature introduces only Claude Code markdown prompt files (`.claude/command
 
 ### Implementation for User Story 1
 
-- [ ] T002 [US1] Create `/series-plan` command prompt at `.claude/commands/series-plan.md` — include repo scanning instructions for 7 areas (Apex MCP framework, JSON-RPC core, TypeScript proxy, design docs, examples, package config, specs per research.md Task 5), 5-topic narrative arc generation (awareness→adoption per spec assumptions), per-topic fields (core message, CTA angle, contrarian hook, repo artifact references per data-model.md Series Plan entity), validation rules (exactly 5 topics, no >20% overlap per FR-002/FR-004), output writing to `specs/002-linkedin-content-system/content/series-plan.md`, and error handling per contracts/commands.md Command 1
+- [X] T002 [US1] Create `/series-plan` command prompt at `.claude/commands/series-plan.md` — include repo scanning instructions for 7 areas (Apex MCP framework, JSON-RPC core, TypeScript proxy, design docs, examples, package config, specs per research.md Task 5), 5-topic narrative arc generation (awareness→adoption per spec assumptions), per-topic fields (core message, CTA angle, contrarian hook, repo artifact references per data-model.md Series Plan entity), validation rules (exactly 5 topics, no >20% overlap per FR-002/FR-004), output writing to `specs/002-linkedin-content-system/content/series-plan.md`, and error handling per contracts/commands.md Command 1
 
 **Checkpoint**: `/series-plan` command is functional. Run it to generate `content/series-plan.md` with 5 topics.
 
@@ -61,7 +61,7 @@ This feature introduces only Claude Code markdown prompt files (`.claude/command
 
 ### Implementation for User Story 2
 
-- [ ] T003 [P] [US2] Create `/proof-pack` command prompt at `.claude/commands/proof-pack.md` — include 7-area repo scanning in priority order (per research.md Task 5: Apex MCP classes, JSON-RPC core, TypeScript proxy, design docs, examples, package config, specs), claim extraction with fields per data-model.md Proof Pack entity (ID, category, statement, source file, excerpt, business-value translation per FR-009), secret file exclusion for `.env`/credentials/connected app configs (FR-008), 6-category organization (package-purpose, architecture, developer-experience, security, deployment, differentiation per FR-007), 15+ claim minimum validation, output writing to `specs/002-linkedin-content-system/content/claims.md`, and error handling per contracts/commands.md Command 2
+- [X] T003 [P] [US2] Create `/proof-pack` command prompt at `.claude/commands/proof-pack.md` — include 7-area repo scanning in priority order (per research.md Task 5: Apex MCP classes, JSON-RPC core, TypeScript proxy, design docs, examples, package config, specs), claim extraction with fields per data-model.md Proof Pack entity (ID, category, statement, source file, excerpt, business-value translation per FR-009), secret file exclusion for `.env`/credentials/connected app configs (FR-008), 6-category organization (package-purpose, architecture, developer-experience, security, deployment, differentiation per FR-007), 15+ claim minimum validation, output writing to `specs/002-linkedin-content-system/content/claims.md`, and error handling per contracts/commands.md Command 2
 
 **Checkpoint**: `/proof-pack` command is functional. Run it to generate `content/claims.md` with 15+ grounded claims.
 
@@ -75,8 +75,8 @@ This feature introduces only Claude Code markdown prompt files (`.claude/command
 
 ### Implementation for User Story 7
 
-- [ ] T004 [US7] Add claim-check prompt hook to `.claude/settings.json` — configure `PostToolUse` event with `Write|Edit` matcher, `if` condition scoped to content draft files, hooks.md, and comment-bank.md per contracts/hooks.md Hook 1 trigger conditions, and claim verification prompt that reads the written file + `specs/002-linkedin-content-system/content/claims.md`, identifies every factual statement, verifies each traces to a claim entry, and reports pass/fail with specific ungrounded claims, line numbers, and suggested fixes (FR-022, FR-024)
-- [ ] T005 [US7] Add style-check prompt hook to `.claude/settings.json` — configure `PostToolUse` event with `Write|Edit` matcher, `if` condition scoped to draft files only per contracts/hooks.md Hook 2 trigger conditions, and style verification prompt checking 5 criteria: word count 150–300 (FR-012), opening quality without clickbait (FR-013), no forbidden phrases (FR-014), business outcome present (FR-011), repo fact present (FR-011) — with per-criterion pass/fail and suggested fixes (FR-024)
+- [X] T004 [US7] Add claim-check prompt hook to `.claude/settings.json` — configure `PostToolUse` event with `Write|Edit` matcher, `if` condition scoped to content draft files, hooks.md, and comment-bank.md per contracts/hooks.md Hook 1 trigger conditions, and claim verification prompt that reads the written file + `specs/002-linkedin-content-system/content/claims.md`, identifies every factual statement, verifies each traces to a claim entry, and reports pass/fail with specific ungrounded claims, line numbers, and suggested fixes (FR-022, FR-024)
+- [X] T005 [US7] Add style-check prompt hook to `.claude/settings.json` — configure `PostToolUse` event with `Write|Edit` matcher, `if` condition scoped to draft files only per contracts/hooks.md Hook 2 trigger conditions, and style verification prompt checking 5 criteria: word count 150–300 (FR-012), opening quality without clickbait (FR-013), no forbidden phrases (FR-014), business outcome present (FR-011), repo fact present (FR-011) — with per-criterion pass/fail and suggested fixes (FR-024)
 
 **Checkpoint**: Both hooks are configured in `.claude/settings.json`. Writing a content file under `content/posts/` should trigger automatic validation.
 
@@ -92,8 +92,8 @@ This feature introduces only Claude Code markdown prompt files (`.claude/command
 
 ### Implementation for User Stories 3 & 4
 
-- [ ] T006 [US3] Create `/draft-post` command prompt at `.claude/commands/draft-post.md` — include `$ARGUMENTS` parsing for post number (1–5), prerequisite check for `content/series-plan.md` + `content/claims.md` with hard-block error messages per FR-028/FR-029 and contracts/commands.md Command 3, topic extraction from series plan, claim mapping (at least 2 supporting claims per topic), 3-variant generation logic (technical: architecture-focused, business: problem-solution, founder: story-driven per FR-010), per-variant enforcement of 150–300 words (FR-012), at least 1 repo fact + 1 business outcome (FR-011), strong opening line (FR-013), no forbidden phrases (FR-014), output writing to `specs/002-linkedin-content-system/content/posts/post-N/draft-{technical,business,founder}.md`, and all error handling per contracts/commands.md Command 3
-- [ ] T007 [US4] Integrate opening hook generation into `/draft-post` command at `.claude/commands/draft-post.md` — add section generating exactly 5 hook variants per data-model.md Hook Set entity (pain-first, misconception-first, architecture-first, business-first, curiosity-first per FR-015), each 2–3 lines and technically accurate (FR-016), no generic superlatives or hype language, output writing to `specs/002-linkedin-content-system/content/posts/post-N/hooks.md`
+- [X] T006 [US3] Create `/draft-post` command prompt at `.claude/commands/draft-post.md` — include `$ARGUMENTS` parsing for post number (1–5), prerequisite check for `content/series-plan.md` + `content/claims.md` with hard-block error messages per FR-028/FR-029 and contracts/commands.md Command 3, topic extraction from series plan, claim mapping (at least 2 supporting claims per topic), 3-variant generation logic (technical: architecture-focused, business: problem-solution, founder: story-driven per FR-010), per-variant enforcement of 150–300 words (FR-012), at least 1 repo fact + 1 business outcome (FR-011), strong opening line (FR-013), no forbidden phrases (FR-014), output writing to `specs/002-linkedin-content-system/content/posts/post-N/draft-{technical,business,founder}.md`, and all error handling per contracts/commands.md Command 3
+- [X] T007 [US4] Integrate opening hook generation into `/draft-post` command at `.claude/commands/draft-post.md` — add section generating exactly 5 hook variants per data-model.md Hook Set entity (pain-first, misconception-first, architecture-first, business-first, curiosity-first per FR-015), each 2–3 lines and technically accurate (FR-016), no generic superlatives or hype language, output writing to `specs/002-linkedin-content-system/content/posts/post-N/hooks.md`
 
 **Checkpoint**: `/draft-post N` produces 4 files per post (3 drafts + hooks.md). Quality hooks from Phase 5 auto-trigger on each write.
 
@@ -109,7 +109,7 @@ This feature introduces only Claude Code markdown prompt files (`.claude/command
 
 ### Implementation for User Story 5
 
-- [ ] T008 [P] [US5] Create `/comment-bank` command prompt at `.claude/commands/comment-bank.md` — include prerequisite check for `content/claims.md` with hard-block error per FR-028/FR-029 and contracts/commands.md Command 4, claims reading for factual grounding, reply generation for 6 mandatory categories ("What is MCP?", "Why not Agentforce?", "Why Apex?", "Why local bridge?", "How is auth handled?", "Can this be used in enterprise?" per FR-018), at least 3 reply variants per category totaling 20+ replies (FR-017), each reply 2–5 sentences (FR-019) with repo fact citation for technical questions (FR-019), output writing to `specs/002-linkedin-content-system/content/comment-bank.md`, and error handling per contracts/commands.md Command 4
+- [X] T008 [P] [US5] Create `/comment-bank` command prompt at `.claude/commands/comment-bank.md` — include prerequisite check for `content/claims.md` with hard-block error per FR-028/FR-029 and contracts/commands.md Command 4, claims reading for factual grounding, reply generation for 6 mandatory categories ("What is MCP?", "Why not Agentforce?", "Why Apex?", "Why local bridge?", "How is auth handled?", "Can this be used in enterprise?" per FR-018), at least 3 reply variants per category totaling 20+ replies (FR-017), each reply 2–5 sentences (FR-019) with repo fact citation for technical questions (FR-019), output writing to `specs/002-linkedin-content-system/content/comment-bank.md`, and error handling per contracts/commands.md Command 4
 
 **Checkpoint**: `/comment-bank` produces `content/comment-bank.md` with 20+ organized replies across 6+ categories.
 
@@ -125,7 +125,7 @@ This feature introduces only Claude Code markdown prompt files (`.claude/command
 
 ### Implementation for User Story 6
 
-- [ ] T009 [P] [US6] Create `/repurpose-post` command prompt at `.claude/commands/repurpose-post.md` — include `$ARGUMENTS` parsing for post number (1–5), prerequisite check for `content/posts/post-N/draft-*.md` with hard-block error per FR-028/FR-029 and contracts/commands.md Command 5, draft reading (select best or first available variant as source), 4-derivative generation per data-model.md Derivatives entity (short post under 100 words, carousel script 5–8 slides with headline + body, comment version 2–3 sentences, DM explanation 3–5 sentences informal per FR-020), core message + key repo fact preservation validation (FR-021), output writing to `specs/002-linkedin-content-system/content/posts/post-N/derivatives.md`, and error handling per contracts/commands.md Command 5
+- [X] T009 [P] [US6] Create `/repurpose-post` command prompt at `.claude/commands/repurpose-post.md` — include `$ARGUMENTS` parsing for post number (1–5), prerequisite check for `content/posts/post-N/draft-*.md` with hard-block error per FR-028/FR-029 and contracts/commands.md Command 5, draft reading (select best or first available variant as source), 4-derivative generation per data-model.md Derivatives entity (short post under 100 words, carousel script 5–8 slides with headline + body, comment version 2–3 sentences, DM explanation 3–5 sentences informal per FR-020), core message + key repo fact preservation validation (FR-021), output writing to `specs/002-linkedin-content-system/content/posts/post-N/derivatives.md`, and error handling per contracts/commands.md Command 5
 
 **Checkpoint**: `/repurpose-post N` produces `content/posts/post-N/derivatives.md` with 4 derivative formats.
 
@@ -135,9 +135,9 @@ This feature introduces only Claude Code markdown prompt files (`.claude/command
 
 **Purpose**: End-to-end validation of the complete content workflow.
 
-- [ ] T010 Validate complete dependency chain by executing commands in order: `/series-plan` → `/proof-pack` → `/draft-post 1` → `/comment-bank` → `/repurpose-post 1` — verify each command enforces prerequisites, produces correct output at the expected path, and quality hooks fire for draft and hook files
-- [ ] T011 [P] Verify hard-block prerequisite enforcement by running `/draft-post 1` without `content/series-plan.md`, `/repurpose-post 1` without drafts, and `/comment-bank` without `content/claims.md` — confirm each command refuses to execute with a clear error naming the missing artifact and producing command
-- [ ] T012 [P] Run quickstart.md verification checklist at `specs/002-linkedin-content-system/quickstart.md` — confirm all 6 verification steps pass (series plan, proof pack, draft with hooks, hard-block test, comment bank, repurpose)
+- [X] T010 Validate complete dependency chain by executing commands in order: `/series-plan` → `/proof-pack` → `/draft-post 1` → `/comment-bank` → `/repurpose-post 1` — verify each command enforces prerequisites, produces correct output at the expected path, and quality hooks fire for draft and hook files
+- [X] T011 [P] Verify hard-block prerequisite enforcement by running `/draft-post 1` without `content/series-plan.md`, `/repurpose-post 1` without drafts, and `/comment-bank` without `content/claims.md` — confirm each command refuses to execute with a clear error naming the missing artifact and producing command
+- [X] T012 [P] Run quickstart.md verification checklist at `specs/002-linkedin-content-system/quickstart.md` — confirm all 6 verification steps pass (series plan, proof pack, draft with hooks, hard-block test, comment bank, repurpose)
 
 ---
 

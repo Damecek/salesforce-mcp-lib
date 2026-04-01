@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "prompt",
+            "if": "Write(specs/002-linkedin-content-system/content/posts/**/draft-*.md) || Write(specs/002-linkedin-content-system/content/posts/**/hooks.md) || Write(specs/002-linkedin-content-system/content/comment-bank.md) || Edit(specs/002-linkedin-content-system/content/posts/**/draft-*.md) || Edit(specs/002-linkedin-content-system/content/posts/**/hooks.md) || Edit(specs/002-linkedin-content-system/content/comment-bank.md)",
+            "prompt": "CLAIM CHECK: Read the file that was just written. Then read specs/002-linkedin-content-system/content/claims.md. Identify every factual statement (technical claims, capability descriptions, architectural assertions) in the written file. For each, verify it matches or is supported by a claim in claims.md. If claims.md does not exist, output '⚠️ Claim check skipped — claims.md not found. Run /proof-pack first.' Otherwise report: for PASS output '✅ Claim Check PASSED — all N factual statements verified.' For FAIL output '❌ Claim Check FAILED' followed by each ungrounded claim with its line number, quoted text, and a suggested fix (add via /proof-pack or rephrase to match existing claim)."
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "prompt",
+            "if": "Write(specs/002-linkedin-content-system/content/posts/**/draft-*.md) || Edit(specs/002-linkedin-content-system/content/posts/**/draft-*.md)",
+            "prompt": "STYLE CHECK: Read the post draft that was just written. Extract the post body text (exclude metadata headings). Check 5 criteria: (1) Word count is 150-300 words, (2) First 3 lines create curiosity and clarity without clickbait, (3) No forbidden phrases ('AI is changing everything', 'the future of', 'game-changer', 'revolutionary', 'next-generation'), (4) At least 1 business outcome stated, (5) At least 1 specific repo fact cited. Report pass/fail for each criterion. For failures include the specific text that triggered it and a suggested fix. Format: '✅ Style Check PASSED' if all pass, or '❌ Style Check FAILED — N/5 criteria failed' with details for each."
+          }
+        ]
+      }
+    ]
+  }
+}
