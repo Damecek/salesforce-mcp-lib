@@ -5,6 +5,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-08
 ## Active Technologies
 - TypeScript ES2022, Node.js >= 20.0.0 + Zero production dependencies. Node.js built-in modules only (`node:http`, `node:https`, `node:fs`, `node:path`, `node:crypto`, `node:os`, `node:child_process`, `node:readline`, `node:url`) (003-per-user-auth)
 - File-based token persistence in `~/.salesforce-mcp-lib/tokens/` (0600 permissions) (003-per-user-auth)
+- Claude Code markdown prompts (no compiled language; LLM-evaluated prompt files only) + Claude Code runtime (commands, hooks, file I/O tools). Zero external dependencies. (002-linkedin-content-system)
+- Filesystem — all content artifacts are markdown files under `specs/002-linkedin-content-system/content/` (002-linkedin-content-system)
 
 - Apex (Salesforce API 65.0) + TypeScript (ES2022, Node.js >= 20) + Zero external dependencies. Apex uses platform-native APIs only. TypeScript uses Node.js built-in modules only (no production npm dependencies). JSON-RPC 2.0 core is implemented in-repo, not imported. (001-apex-mcp-server)
 
@@ -38,6 +40,7 @@ Apex (Salesforce API 65.0) + TypeScript (ES2022, Node.js >= 20): Follow standard
 
 ## Recent Changes
 - 003-per-user-auth: Implemented per-user OAuth 2.0 Authorization Code flow with PKCE. New modules: authStrategy.ts, perUserAuth.ts, callbackServer.ts, tokenStore.ts. `--client-secret` is now optional. Auth mode auto-detected from config. Login subcommand: `salesforce-mcp-lib login`. File-based token persistence in `~/.salesforce-mcp-lib/tokens/`. Five specific error subclasses (InvalidCredentialsError, InsufficientAccessError, ConsentDeniedError, SessionExpiredError, ConnectivityError). Backward compatible with client credentials flow.
+- 002-linkedin-content-system: Added Claude Code markdown prompts (no compiled language; LLM-evaluated prompt files only) + Claude Code runtime (commands, hooks, file I/O tools). Zero external dependencies.
 
 - 001-apex-mcp-server: Added Apex (Salesforce API 65.0) + TypeScript (ES2022, Node.js >= 20) + Zero external dependencies. Apex uses platform-native APIs only. TypeScript uses Node.js built-in modules only (no production npm dependencies). JSON-RPC 2.0 core is implemented in-repo, not imported.
 
