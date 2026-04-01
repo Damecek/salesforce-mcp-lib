@@ -1,0 +1,66 @@
+/**
+ * @theme linkedin
+ */
+
+section {
+  width: 1080px;
+  height: 1350px;
+  padding: 80px 80px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 40px;
+  line-height: 1.5;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0a66c2 0%, #004182 100%);
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: center;
+}
+
+@page {
+  size: 1080px 1350px;
+  margin: 0;
+}
+
+h1 {
+  font-size: 72px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+  margin-bottom: 32px;
+}
+
+h2 {
+  font-size: 56px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.25;
+  margin-bottom: 24px;
+}
+
+p {
+  color: #e0e8f0;
+  margin-bottom: 16px;
+}
+
+strong {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+code {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 36px;
+  color: #ffffff;
+}
+
+/* Slide number */
+section::after {
+  content: attr(data-marpit-pagination) " / " attr(data-marpit-pagination-total);
+  position: absolute;
+  bottom: 40px;
+  right: 60px;
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.5);
+}

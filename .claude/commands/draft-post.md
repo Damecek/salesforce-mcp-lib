@@ -73,7 +73,17 @@ Generate 3 distinct style variants for the post. Each variant MUST:
 
 3. **Founder** (`draft-founder.md`): Story-driven, community-focused. Leads with the journey or motivation behind the project. Uses authentic, personal voice. Appeals to open-source enthusiasts and developer community members.
 
-### Step 3: Generate 5 Opening Hooks
+### Step 3: Generate Hashtag Set
+
+Generate a hashtag block for this post:
+
+- Always include these 3 fixed hashtags: `#Salesforce #MCP #OpenSource`
+- Add 2–3 topic-specific hashtags based on the post's arc position and content
+- Pick from this pool (or suggest new ones if the topic warrants it): `#Apex`, `#AIAgents`, `#SalesforceDeveloper`, `#EnterpriseAI`, `#APIDesign`, `#AIIntegration`, `#JSONRPC`, `#ZeroDependencies`, `#OAuth`, `#CyberSecurity`, `#DeveloperExperience`, `#LLM`
+- Total: **5–6 hashtags** per post (LinkedIn sweet spot)
+- Format as a single copy-pasteable line
+
+### Step 4: Generate 5 Opening Hooks
 
 Generate exactly 5 opening hook variants for this topic. Each hook:
 
@@ -90,9 +100,9 @@ Generate exactly 5 opening hook variants for this topic. Each hook:
 4. **Business-first**: Lead with a concrete business outcome
 5. **Curiosity-first**: Pose a question that demands an answer
 
-### Step 4: Write Output Files
+### Step 5: Write Output Files
 
-Write 4 files for the specified post number N:
+Write 5 files for the specified post number N:
 
 **File 1**: `specs/002-linkedin-content-system/content/posts/post-N/draft-technical.md`
 
@@ -165,6 +175,23 @@ Write 4 files for the specified post number N:
 ## 5. Curiosity-First
 
 [2–3 lines]
+```
+
+**File 5**: `specs/002-linkedin-content-system/content/posts/post-N/hashtags.md`
+
+```markdown
+# Hashtags: Post N — [Topic Title]
+
+**Topic**: [N] — [Title]
+
+## Copy-paste block
+
+[single line of 5–6 hashtags]
+
+## Breakdown
+
+- **Fixed (always)**: #Salesforce #MCP #OpenSource
+- **Topic-specific**: [2–3 hashtags with brief rationale for each]
 ```
 
 Replace `N` with the actual post number in all file paths and content.
