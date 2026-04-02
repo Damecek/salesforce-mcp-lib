@@ -1,6 +1,6 @@
 {
   "name": "salesforce-mcp-lib",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "TypeScript stdio proxy bridging MCP clients to Salesforce Apex MCP endpoints via OAuth 2.0",
   "type": "module",
   "main": "dist/index.js",
