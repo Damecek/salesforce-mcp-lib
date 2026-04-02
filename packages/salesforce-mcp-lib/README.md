@@ -7,7 +7,7 @@ TypeScript stdio proxy that bridges any MCP client (Claude, ChatGPT, etc.) to a 
 
 **Zero npm production dependencies.** Node.js >= 20.
 
-![Architecture](../../docs/images/architecture.jpg)
+![Architecture](https://raw.githubusercontent.com/Damecek/salesforce-mcp-lib/main/docs/images/architecture.jpg)
 
 ## What it does
 
@@ -62,11 +62,11 @@ All options can be set via environment variables instead of CLI flags:
 
 This proxy connects to an Apex MCP endpoint running in your Salesforce org. You need:
 
-1. **Salesforce MCP Library** installed in your org ([install instructions](../../README.md#1-install-the-apex-framework))
+1. **Salesforce MCP Library** installed in your org ([install instructions](https://github.com/Damecek/salesforce-mcp-lib#1-install-the-apex-framework))
 2. At least one `@RestResource` endpoint with registered MCP capabilities
 3. A **Connected App** with OAuth 2.0 Client Credentials flow enabled
 
-See the [main README](../../README.md) for a full quick-start guide.
+See the [main README](https://github.com/Damecek/salesforce-mcp-lib) for a full quick-start guide.
 
 ## How it works
 
@@ -82,4 +82,4 @@ The proxy is a transparent JSON-RPC passthrough — it doesn't interpret MCP met
 
 ## License
 
-[MIT](../../LICENSE)
+[MIT](https://github.com/Damecek/salesforce-mcp-lib/blob/main/LICENSE)
