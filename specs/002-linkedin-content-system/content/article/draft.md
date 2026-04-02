@@ -162,33 +162,39 @@ const logger = {
 
 Raw Salesforce error bodies — stack traces, org identifiers, `APEX_ERROR` messages — are [never exposed](https://github.com/damecek/salesforce-mcp-lib/blob/main/packages/salesforce-mcp-lib/src/mcpBridge.ts) to the MCP client. The proxy returns generic JSON-RPC error messages and logs detailed diagnostics to stderr only. Internal details stay internal.
 
-## Getting Started — Clone, Deploy, Connect
+## Getting Started — Install, Deploy, Connect
 
-The setup takes four steps:
+The setup takes five steps:
 
-**1. Clone the repository:**
+**1. Install the framework package into your org:**
 
 ```bash
-git clone https://github.com/damecek/salesforce-mcp-lib.git
+sf package install --package SalesforceMcpLib@1.1.0-3 --target-org <your-org> --wait 10
 ```
 
-**2. Deploy the minimal example to your org:**
+**2. Retrieve the installed package locally (so you can extend it):**
+
+```bash
+sf project retrieve start --package-name SalesforceMcpLib --target-org <your-org>
+```
+
+**3. Deploy the minimal example on top of the framework:**
 
 ```bash
 sf project deploy start --source-dir examples/minimal/force-app --target-org <your-org>
 ```
 
-**3. Connect an AI agent via the proxy:**
+**4. Connect an AI agent via the proxy:**
 
 ```bash
 npx salesforce-mcp-lib \
   --instance-url https://your-org.my.salesforce.com \
-  --client-id YOUR_CONNECTED_APP_KEY \
-  --client-secret YOUR_CONNECTED_APP_SECRET \
+  --client-id YOUR_EXTERNAL_CLIENT_APP_KEY \
+  --client-secret YOUR_EXTERNAL_CLIENT_APP_SECRET \
   --endpoint /services/apexrest/mcp/minimal
 ```
 
-**4. Test interactively with the MCP Inspector:**
+**5. Test interactively with the MCP Inspector:**
 
 ```bash
 npx @modelcontextprotocol/inspector \
