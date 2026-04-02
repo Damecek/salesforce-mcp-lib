@@ -1,5 +1,8 @@
 # Salesforce MCP Library
 
+[![npm](https://img.shields.io/npm/v/salesforce-mcp-lib)](https://www.npmjs.com/package/salesforce-mcp-lib)
+[![license](https://img.shields.io/npm/l/salesforce-mcp-lib)](LICENSE)
+
 Open-source bridge connecting AI agents to Salesforce via [Model Context Protocol](https://modelcontextprotocol.io/).
 
 ![Architecture](docs/images/architecture.jpg)

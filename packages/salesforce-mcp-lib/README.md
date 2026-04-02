@@ -1,5 +1,8 @@
 # salesforce-mcp-lib
 
+[![npm](https://img.shields.io/npm/v/salesforce-mcp-lib)](https://www.npmjs.com/package/salesforce-mcp-lib)
+[![license](https://img.shields.io/npm/l/salesforce-mcp-lib)](https://github.com/Damecek/salesforce-mcp-lib/blob/main/LICENSE)
+
 TypeScript stdio proxy that bridges any MCP client (Claude, ChatGPT, etc.) to a Salesforce Apex MCP endpoint via OAuth 2.0.
 
 **Zero npm production dependencies.** Node.js >= 20.
