@@ -114,7 +114,20 @@ salesforce-mcp-lib login \
 # User pastes → tokens stored
 ```
 
-### MCP client configuration (Claude Desktop)
+### MCP client configuration — Claude Code / Claude CLI
+
+Auth flow from Claude Code:
+
+1. **One-time login** (in your terminal, not inside Claude):
+   ```bash
+   npx salesforce-mcp-lib login \
+     --instance-url https://myorg.my.salesforce.com \
+     --client-id 3MVG9...
+   ```
+2. **Add server** in Claude Code: `/mcp` → Add Server → stdio
+3. **Re-auth** when needed: if the server shows disconnected in `/mcp`, re-run the `login` command in your terminal, then restart the server from the `/mcp` menu
+
+Configuration in `~/.claude.json`:
 
 ```json
 {
@@ -125,7 +138,27 @@ salesforce-mcp-lib login \
         "-y", "salesforce-mcp-lib",
         "--instance-url", "https://myorg.my.salesforce.com",
         "--client-id", "3MVG9...",
-        "--endpoint", "/services/apexrest/mcp"
+        "--sf-endpoint", "/services/apexrest/mcp/records"
+      ]
+    }
+  }
+}
+```
+
+### MCP client configuration — Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "salesforce": {
+      "command": "npx",
+      "args": [
+        "-y", "salesforce-mcp-lib",
+        "--instance-url", "https://myorg.my.salesforce.com",
+        "--client-id", "3MVG9...",
+        "--sf-endpoint", "/services/apexrest/mcp/records"
       ]
     }
   }

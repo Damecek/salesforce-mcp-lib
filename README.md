@@ -19,7 +19,7 @@ Two packages, zero external dependencies:
 ## How it works
 
 1. **MCP Client** (Claude, ChatGPT, any MCP host) sends JSON-RPC 2.0 messages over **stdio**
-2. **npm proxy** authenticates via OAuth 2.0 `client_credentials`, forwards requests over HTTPS, and handles token refresh automatically
+2. **npm proxy** authenticates via OAuth 2.0 (client credentials or per-user login), forwards requests over HTTPS, and handles token refresh automatically
 3. **Apex MCP Server** dispatches requests to your registered **tools**, **resources**, and **prompts** — all running inside Salesforce with full platform security
 
 The Apex server is **stateless** — it rebuilds its handler chain on every request. No session cleanup, no state bugs, no cross-request data leakage.
@@ -99,11 +99,42 @@ public inherited sharing class MinimalTool extends McpToolDefinition {
 
 ### 3. Configure an External Client App
 
-Create an External Client App with **OAuth 2.0 Client Credentials** flow enabled. Note the `client_id` and `client_secret`.
+**Option A — Client Credentials** (service account, no user interaction):
+Create an External Client App with **OAuth 2.0 Client Credentials** flow. Note the `client_id` and `client_secret`.
+
+**Option B — Per-User Auth** (individual identity, recommended):
+Create an External Client App with **Authorization Code + PKCE** flow. Callback URL: `http://localhost:13338/oauth/callback`. Scopes: `api`, `refresh_token`. See [Per-User Auth Setup Guide](specs/003-per-user-auth/quickstart.md) for detailed steps.
 
 ### 4. Connect an AI agent
 
-Add to your MCP client config (e.g. `claude_desktop_config.json`):
+**Per-User Auth** (individual identity — recommended for Claude Code):
+
+```bash
+# One-time login in your terminal:
+npx salesforce-mcp-lib login \
+  --instance-url https://your-org.my.salesforce.com \
+  --client-id YOUR_CLIENT_ID
+```
+
+Then add to Claude Code via `/mcp` → Add Server, or edit `~/.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "salesforce": {
+      "command": "npx",
+      "args": [
+        "-y", "salesforce-mcp-lib",
+        "--instance-url", "https://your-org.my.salesforce.com",
+        "--client-id", "YOUR_CLIENT_ID",
+        "--endpoint", "/services/apexrest/mcp/minimal"
+      ]
+    }
+  }
+}
+```
+
+**Client Credentials** (service account — existing behavior):
 
 ```json
 {
@@ -121,6 +152,8 @@ Add to your MCP client config (e.g. `claude_desktop_config.json`):
   }
 }
 ```
+
+The auth mode is auto-detected: `--client-secret` present → client credentials, absent → per-user auth.
 
 That's it. The agent can now discover and invoke your Salesforce tools.
 
@@ -159,6 +192,8 @@ See [`examples/`](examples/) for complete working code.
 
 ## CLI reference
 
+### MCP Server Mode
+
 ```
 salesforce-mcp-lib [options]
 ```
@@ -166,10 +201,26 @@ salesforce-mcp-lib [options]
 | Option | Env variable | Required | Description |
 |--------|-------------|----------|-------------|
 | `--instance-url` | `SF_INSTANCE_URL` | Yes | Salesforce org URL |
-| `--client-id` | `SF_CLIENT_ID` | Yes | External Client App client ID |
-| `--client-secret` | `SF_CLIENT_SECRET` | Yes | External Client App client secret |
+| `--client-id` | `SF_CLIENT_ID` | Yes | External Client App consumer key |
+| `--client-secret` | `SF_CLIENT_SECRET` | No* | External Client App consumer secret |
 | `--endpoint` | `SF_ENDPOINT` | Yes | Apex REST endpoint path |
+| `--callback-port` | `SF_CALLBACK_PORT` | No | Local OAuth callback port (default: `13338`) |
 | `--log-level` | `SF_LOG_LEVEL` | No | `debug` / `info` / `warn` / `error` (default: `info`) |
+
+\* When `--client-secret` is provided → client credentials flow. When omitted → per-user auth (requires prior `login`).
+
+### Login Subcommand (per-user auth)
+
+```
+salesforce-mcp-lib login [options]
+```
+
+| Option | Env variable | Required | Description |
+|--------|-------------|----------|-------------|
+| `--instance-url` | `SF_INSTANCE_URL` | Yes | Salesforce org URL |
+| `--client-id` | `SF_CLIENT_ID` | Yes | External Client App consumer key |
+| `--headless` | `SF_HEADLESS` | No | Print auth URL instead of opening browser |
+| `--callback-port` | `SF_CALLBACK_PORT` | No | Local OAuth callback port (default: `13338`) |
 
 ---
 

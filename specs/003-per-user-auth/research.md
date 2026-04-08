@@ -189,7 +189,64 @@
 - Single generic auth error with message variations: Harder for agents and tools to handle programmatically
 - Error codes as numbers: Less descriptive than named error classes
 
-## R8: Backward Compatibility Strategy
+## R8: Salesforce External Client App Setup
+
+**Decision**: Document External Client App as the recommended OAuth configuration path (API v60+), with Connected App as fallback.
+
+**Rationale**: Salesforce introduced External Client Apps in Spring '24 (API v60) as the modern way to manage OAuth for external applications. They replace/supplement the classic Connected App model with a cleaner setup experience. Since our target API is v65.0, External Client App is the recommended path.
+
+**Key findings**:
+
+| Aspect | External Client App (v60+) | Connected App (all versions) |
+|--------|---------------------------|------------------------------|
+| Setup path | Setup → External Client App Manager | Setup → App Manager → New Connected App |
+| PKCE support | First-class, explicit toggle | Checkbox in OAuth settings |
+| Client secret | Can be explicitly not required | Defaults to having a secret |
+| Distribution | Local / Managed | Admin-approved or self-service |
+| Recommended for | New implementations, API v60+ | Backward compatibility, older orgs |
+
+**Setup requirements for per-user auth (Authorization Code + PKCE)**:
+
+1. **OAuth Flow**: Authorization Code and Credentials Flow (with PKCE enabled)
+2. **Callback URL**: `http://localhost:13338/oauth/callback` (must match exactly)
+3. **OAuth Scopes**:
+   - `Manage user data via APIs (api)` — required for Apex REST callouts
+   - `Perform requests at any time (refresh_token, offline_access)` — required for persistent sessions
+4. **Require Secret for Web Server Flow**: No (PKCE replaces the client secret)
+5. **User Access Policy**: "All users may self-authorize" for simplest setup, or restrict via Profiles/Permission Sets
+6. **IP Relaxation**: "Relax IP restrictions" recommended for developer CLI use
+7. **Refresh Token Policy**: "Refresh token is valid until revoked" for persistent sessions
+
+**Important**: The Consumer Key (client_id) is the only credential needed client-side. No client_secret is required or stored.
+
+## R9: Claude Code MCP Integration Pattern
+
+**Decision**: Auth is invoked as a separate `login` step in the terminal. The MCP server itself does not trigger interactive auth — it reads stored tokens.
+
+**Rationale**: Claude Code (and Claude CLI) run MCP servers as stdio subprocesses. The subprocess's stdin is reserved for JSON-RPC messages, so it cannot be used for interactive authentication. The standard pattern for MCP servers that need OAuth:
+
+**Flow for Claude Code users**:
+1. User runs `npx salesforce-mcp-lib login --instance-url ... --client-id ...` in their terminal (separate from Claude)
+2. Browser opens → user authenticates with Salesforce → tokens stored in `~/.salesforce-mcp-lib/tokens/`
+3. User configures MCP server in Claude Code (via `/mcp` → Add Server, or editing `~/.claude.json`)
+4. Claude Code starts the MCP server subprocess → server loads stored tokens → server is ready
+5. When tokens expire → server auto-refreshes transparently
+6. When refresh token is revoked → server exits with error → user re-runs `login` in terminal → restarts server from `/mcp`
+
+**Key findings**:
+- Claude Code's `/mcp` command lists all configured MCP servers and their status
+- Servers that fail to start show an error status — user can see the error message and take action
+- The "Restart" action in `/mcp` restarts the server subprocess — useful after re-authenticating
+- For stdio-based MCP servers, there is no built-in "Authorize" protocol action — auth is the server's responsibility
+- The `login` subcommand runs as a standalone CLI process with full terminal access (stdin for headless code paste, browser for OAuth redirect)
+- Once tokens are stored on disk, any number of MCP server instances can read them (same instance-url + client-id → same token file)
+
+**Alternatives considered**:
+- Inline auth in MCP server mode (server opens browser itself): Technically possible (doesn't need stdin) but creates confusing UX — a browser suddenly opens while Claude is starting, with no clear context for the user
+- MCP protocol-level OAuth (HTTP transport only): Not applicable to stdio transport. The MCP spec defines OAuth for streamable HTTP transport, not stdio
+- Server-side "needs auth" signal to client: No standard MCP mechanism for this with stdio transport
+
+## R10: Backward Compatibility Strategy
 
 **Decision**: Zero-change compatibility for existing client credentials configurations.
 

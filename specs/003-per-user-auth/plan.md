@@ -78,6 +78,8 @@ packages/salesforce-mcp-lib/tests/
 
 **Structure Decision**: Follows the existing single-package layout under `packages/salesforce-mcp-lib/src/`. Each new concern gets its own module file. No new directories in src/ — flat module structure consistent with existing codebase (6 files → 10 files).
 
+**Salesforce-Side Prerequisite**: An External Client App (API v60+) or Connected App must be configured with OAuth Authorization Code + PKCE flow, callback URL `http://localhost:13338/oauth/callback`, and scopes `api` + `refresh_token`. See `quickstart.md` for detailed setup instructions.
+
 ## Complexity Tracking
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
@@ -122,14 +124,22 @@ packages/salesforce-mcp-lib/tests/
 - Random port each time: Admin would need wildcard callback URL configuration, not supported by Salesforce Connected Apps
 - Polling-based: Adds latency, complexity, and additional API calls
 
-### D4: Separate Login Subcommand for Headless Environments
+### D4: Separate Login Subcommand for All MCP Client Integrations
 
 **Chosen**: `salesforce-mcp-lib login [options]` subcommand that runs an interactive login flow and stores tokens. In headless mode (`--headless`), prints the authorization URL and reads the callback URL/code from stdin.
 
-**Why**: The main MCP process cannot use stdin interactively (reserved for JSON-RPC). A separate login subcommand runs outside the MCP client context, allowing full terminal interaction. Once tokens are stored, the main MCP process finds them on startup.
+**Why**: The main MCP process cannot use stdin interactively (reserved for JSON-RPC). MCP clients (Claude Code, Claude Desktop) run the server as a stdio subprocess — there is no standard MCP protocol mechanism for a stdio server to request interactive authorization. A separate login subcommand runs outside the MCP client context, allowing full terminal interaction. Once tokens are stored, the main MCP process finds them on startup.
+
+**Claude Code integration pattern**:
+1. User runs `npx salesforce-mcp-lib login ...` in their terminal (one-time)
+2. Configures the MCP server in Claude Code via `/mcp` or `~/.claude.json`
+3. Server starts and reads stored tokens — no interactive auth needed
+4. If tokens become invalid → server exits → user re-runs `login` → restarts server from `/mcp` menu
 
 **Rejected**:
+- Inline browser open in MCP server mode: Technically possible (doesn't need stdin) but confusing UX — a browser suddenly opens while Claude is starting, no clear context
 - Inline stdin prompt during startup: Conflicts with JSON-RPC stdin transport
+- MCP protocol-level OAuth: Only defined for HTTP transport, not stdio
 - Environment variable with pre-obtained token: Requires manual token management, violates FR-002
 - External auth helper process: Over-engineered for the use case
 

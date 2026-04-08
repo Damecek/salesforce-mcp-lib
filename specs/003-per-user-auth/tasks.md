@@ -117,6 +117,24 @@
 
 ---
 
+## Phase 8: Testing with Claude CLI & Documentation
+
+**Purpose**: Validate the full auth flow with a real MCP client (Claude Code / Claude CLI) and update project documentation
+
+### Testing with Claude Code
+
+- [ ] T028 [P] Test per-user auth end-to-end with Claude Code using the Carvago org — run `npx salesforce-mcp-lib login --instance-url https://carvago.my.salesforce.com --client-id 3MVG9fTLmJ60pJ5LtEXrrYU_yvTMZwYXbrMNq0Nj0Dsk2snkXq4LZYtyJx7ACykA_qWQhBMIdudcm.h7xCuOs`, complete browser auth, then add MCP server to Claude Code via `/mcp` with `--sf-endpoint /services/apexrest/mcp/records`, verify server shows connected, invoke a tool through Claude, verify Salesforce Login History shows requests under the authenticated user
+- [ ] T029 [P] Test session persistence with Claude Code — after T028 login, quit and reopen Claude Code, verify `/mcp` shows the salesforce server auto-reconnects without re-login, invoke a tool to confirm the stored tokens are still valid
+- [ ] T030 Test re-authorization flow — revoke the refresh token in Salesforce (Setup → Security → Session Management, or change password), verify Claude Code `/mcp` shows the server disconnected, re-run the `login` command, restart the server from `/mcp`, verify it reconnects
+- [ ] T031 Test client credentials backward compatibility — configure the same Carvago org MCP server WITH `--client-secret` in Claude Code, verify the existing client credentials flow still works identically
+
+### Documentation Updates
+
+- [ ] T032 [P] Update `README.md` (project root) — add "Authentication" section describing both auth modes (client credentials + per-user), add Claude Code configuration example (per-user auth without client-secret), update CLI reference table to show `--client-secret` as optional and add `--headless` / `--callback-port` flags, add reference to quickstart.md for External Client App setup guide
+- [ ] T033 [P] Update `CLAUDE.md` — ensure the auto-generated development guidelines reflect the per-user auth feature (new source files, new commands, new test patterns)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -128,6 +146,7 @@
   - US3 (Phase 5) can start after Phase 2 but benefits from US1 being complete (to verify both paths)
   - US4 (Phase 6) can start after Phase 2 but benefits from US1+US2 being complete (error paths exercised)
 - **Polish (Phase 7)**: Depends on all user stories (Phases 3–6) being complete
+- **Testing & Docs (Phase 8)**: Depends on Phase 7 — all code must be complete before Claude CLI testing and documentation updates
 
 ### User Story Dependencies
 
@@ -140,6 +159,9 @@ Phase 1 (Setup) ──▶ Phase 2 (Foundational) ──┬──▶ Phase 3 (US1
                                                                                         │
                                                                                         ▼
                                                                               Phase 7 (Polish)
+                                                                                        │
+                                                                                        ▼
+                                                                    Phase 8 (Claude CLI Testing & Docs)
 ```
 
 ### Within Each User Story
@@ -207,6 +229,7 @@ Task T016: "Update index.ts startup with token loading"
 4. Add US3 (Phase 5) → Test: existing client credentials config unchanged → **Upgrade-safe**
 5. Add US4 (Phase 6) → Test: actionable error messages → **Production-ready**
 6. Phase 7 (Polish) → Edge cases, security, validation → **Release candidate**
+7. Phase 8 (Testing & Docs) → Claude CLI end-to-end validation, README/docs updated → **Ship it!**
 
 ### File Change Summary
 

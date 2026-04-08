@@ -127,11 +127,13 @@ As a user who encounters a login problem, I want clear error messages that help 
 ## Assumptions
 
 - Users have a valid Salesforce user account in the target org with an active license
-- The Salesforce org has a Connected App configured to support the per-user login flow; administrators may reuse the same Connected App as client credentials or create a separate one — the system must work with either setup
+- The Salesforce org has an **External Client App** (API v60+) or **Connected App** configured for OAuth 2.0 Authorization Code flow with PKCE; administrators may reuse the same app for both flows or create separate ones — the system must work with either setup
+- The External Client App / Connected App has `http://localhost:13338/oauth/callback` as a registered callback URL, with OAuth scopes `api` and `refresh_token` (`offline_access`) enabled
 - Users have a web browser available on the same machine for the primary login flow (a fallback exists for headless environments)
 - The MCP client runs on the user's local machine (not a shared server), so one authenticated session per instance is sufficient
 - The existing client credentials flow is automatically selected when `client_secret` is provided; per-user auth activates when `client_secret` is absent — no explicit mode flag needed
-- Secure local storage (OS keychain or encrypted file) is available for persisting session credentials
+- Secure file-based storage (`~/.salesforce-mcp-lib/tokens/`, permissions 0600) is used for persisting session credentials
 - Network connectivity to Salesforce is available during login and during active usage (offline operation is out of scope)
-- The Salesforce org administrator is responsible for configuring the Connected App and granting user access to it; this feature does not automate Connected App setup
+- The Salesforce org administrator is responsible for configuring the External Client App / Connected App and granting user access to it; this feature does not automate the Salesforce-side setup — see quickstart.md for a detailed setup guide
 - No explicit logout or user-switching command is in scope; sessions persist until expired/revoked, and users delete stored credentials manually to switch accounts
+- Auth is invoked as a separate `login` step before starting the MCP server. MCP clients (Claude Code, Claude Desktop) start the server as a subprocess; users authenticate via the `login` subcommand in their terminal, then the MCP client's server connects using the stored tokens
