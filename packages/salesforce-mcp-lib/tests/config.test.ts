@@ -216,7 +216,7 @@ describe('parseConfig', () => {
     const output = stderrOutput(writeMock.mock);
     assert.ok(output.includes('instanceUrl'), 'stderr should mention instanceUrl');
     assert.ok(output.includes('clientId'), 'stderr should mention clientId');
-    assert.ok(output.includes('clientSecret'), 'stderr should mention clientSecret');
+    // clientSecret is no longer required (per-user auth feature 003-per-user-auth)
     assert.ok(output.includes('endpoint'), 'stderr should mention endpoint');
   });
 

@@ -51,6 +51,25 @@ export function createLogger(level: string): Logger {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract JSON-RPC metadata (id + method) for safe logging.
+ * Avoids logging full message bodies which may contain sensitive data / PII.
+ */
+function summariseJsonRpc(raw: string): string {
+  try {
+    const msg = JSON.parse(raw) as Record<string, unknown>;
+    const id = msg['id'] ?? null;
+    const method = msg['method'] ?? (msg['error'] ? 'error' : 'response');
+    return `{id:${JSON.stringify(id)}, method:${JSON.stringify(method)}}`;
+  } catch {
+    return `(non-JSON, ${raw.length} bytes)`;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Stdio listener
 // ---------------------------------------------------------------------------
 
@@ -79,11 +98,13 @@ export function startStdioListener(
       return;
     }
 
-    logger.debug(`stdin >> ${trimmed}`);
+    // Log only JSON-RPC metadata (id + method) to avoid leaking sensitive
+    // business data or PII from Salesforce responses into debug logs.
+    logger.debug(`stdin >> ${summariseJsonRpc(trimmed)}`);
 
     onMessage(trimmed)
       .then((response) => {
-        logger.debug(`stdout << ${response}`);
+        logger.debug(`stdout << ${summariseJsonRpc(response)}`);
         process.stdout.write(response + '\n');
       })
       .catch((err: unknown) => {

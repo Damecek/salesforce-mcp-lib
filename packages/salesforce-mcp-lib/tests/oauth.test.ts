@@ -246,7 +246,11 @@ describe('authenticate() - errors', () => {
       () => authenticate(makeConfig({ instanceUrl: 'http://localhost:1' })),
       (err: unknown) => {
         assert(err instanceof SalesforceAuthError);
-        assert(err.message.includes('network error'));
+        // ConnectivityError extends SalesforceAuthError with updated message.
+        assert(
+          err.message.includes('Cannot reach') || err.message.includes('network'),
+          `Expected error message to reference connectivity, got: ${err.message}`
+        );
         return true;
       }
     );

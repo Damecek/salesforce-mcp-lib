@@ -1,13 +1,21 @@
 /**
  * Salesforce OAuth 2.0 client-credentials flow.
  * T036 — authenticate, cache token, expose getter.
+ * T009 — wrap in ClientCredentialsStrategy implementing AuthStrategy.
+ * T021 — improved error classification with specific error subclasses.
  */
 
 import https from 'node:https';
 import http from 'node:http';
 import { URL } from 'node:url';
 import type { BridgeConfig, OAuthTokenResponse } from './types.js';
-import { SalesforceAuthError } from './errors.js';
+import {
+  SalesforceAuthError,
+  InvalidCredentialsError,
+  ConnectivityError,
+} from './errors.js';
+import type { AuthStrategy } from './authStrategy.js';
+import type { BridgeLogger } from './mcpBridge.js';
 
 /** Cached token state (module-level singleton). */
 let cachedToken: string | null = null;
@@ -48,8 +56,21 @@ export async function authenticate(
       typeof parsed['error_description'] === 'string'
         ? parsed['error_description']
         : 'unknown';
+    const errorCode = parsed['error'] as string;
+
+    // T021: Use specific error subclasses instead of generic SalesforceAuthError.
+    if (
+      errorCode === 'invalid_grant' ||
+      errorCode === 'invalid_client_id' ||
+      errorCode === 'invalid_client'
+    ) {
+      throw new InvalidCredentialsError(
+        `Connected App authentication failed. Verify client_id and Connected App settings. (${errorCode}: ${desc})`,
+        errorCode
+      );
+    }
     throw new SalesforceAuthError(
-      `OAuth error: ${parsed['error']} - ${desc}`
+      `OAuth error: ${errorCode} - ${desc}`
     );
   }
 
@@ -91,12 +112,51 @@ export function resetTokenCache(): void {
 }
 
 // ---------------------------------------------------------------------------
+// ClientCredentialsStrategy (T009)
+// ---------------------------------------------------------------------------
+
+/**
+ * AuthStrategy implementation for OAuth 2.0 client_credentials flow.
+ * Wraps the existing authenticate/getToken/getInstanceUrl functions.
+ */
+export class ClientCredentialsStrategy implements AuthStrategy {
+  readonly mode = 'client_credentials' as const;
+  private readonly config: BridgeConfig;
+  private readonly logger: BridgeLogger;
+
+  constructor(config: BridgeConfig, logger: BridgeLogger) {
+    this.config = config;
+    this.logger = logger;
+  }
+
+  async getAccessToken(): Promise<string> {
+    const token = getToken();
+    if (token) return token;
+
+    // No cached token — authenticate.
+    this.logger.info('Authenticating with client credentials...');
+    const response = await authenticate(this.config);
+    return response.access_token;
+  }
+
+  getInstanceUrl(): string | null {
+    return getInstanceUrl() ?? this.config.instanceUrl;
+  }
+
+  async reauthenticate(): Promise<OAuthTokenResponse> {
+    this.logger.info('Re-authenticating with client credentials...');
+    return authenticate(this.config);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
 /**
  * Low-level HTTPS/HTTP POST with application/x-www-form-urlencoded body.
  * Uses node:https or node:http based on the URL protocol.
+ * T021: Wraps network errors in ConnectivityError.
  */
 function postForm(url: URL, body: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
@@ -135,7 +195,10 @@ function postForm(url: URL, body: string): Promise<string> {
 
     req.on('error', (err: Error) => {
       reject(
-        new SalesforceAuthError(`OAuth request network error: ${err.message}`)
+        new ConnectivityError(
+          `Cannot reach ${url.origin}. Check your network connection and instance URL.`,
+          err
+        )
       );
     });
 

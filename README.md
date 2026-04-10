@@ -227,7 +227,7 @@ salesforce-mcp-lib login [options]
 ## Tech stack
 
 - **Apex**: Salesforce API 65.0 — 54 classes, zero external dependencies
-- **TypeScript**: ES2022, Node.js >= 20 — 6 modules, zero npm production dependencies
+- **TypeScript**: ES2022, Node.js >= 20 — 10 modules, zero npm production dependencies
 - **Protocol**: MCP `2025-11-25`, JSON-RPC 2.0 — all 11 MCP methods implemented
 - **Packaging**: Salesforce 2GP unlocked package (no namespace)
 
@@ -238,7 +238,7 @@ force-app/main/
   json-rpc/classes/    # JSON-RPC 2.0 core (14 classes)
   mcp/classes/         # MCP server framework (40 classes)
 packages/salesforce-mcp-lib/
-  src/                 # TypeScript stdio proxy (6 modules)
+  src/                 # TypeScript stdio proxy (10 modules)
   tests/               # Unit tests
 examples/
   minimal/             # Single-tool echo example

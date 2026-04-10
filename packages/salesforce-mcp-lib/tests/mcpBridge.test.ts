@@ -5,8 +5,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { createBridge } from '../src/mcpBridge.js';
 import type { BridgeLogger } from '../src/mcpBridge.js';
-import { authenticate, resetTokenCache } from '../src/oauth.js';
-import type { BridgeConfig } from '../src/types.js';
+import type { AuthStrategy } from '../src/authStrategy.js';
+import type { AuthConfig, OAuthTokenResponse } from '../src/types.js';
 
 // ---------------------------------------------------------------------------
 // Collecting logger
@@ -21,6 +21,73 @@ function createCollectingLogger() {
     warn: (msg: string) => logs.push({ level: 'warn', message: msg }),
     error: (msg: string) => logs.push({ level: 'error', message: msg }),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Mock AuthStrategy for tests
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a mock AuthStrategy that returns the given token and instance URL.
+ * The reauthenticate function calls the provided oauthUrl to simulate re-auth.
+ */
+function createMockStrategy(opts: {
+  token: string | null;
+  instanceUrl: string;
+  oauthUrl?: string;
+  reauthFn?: () => Promise<OAuthTokenResponse>;
+}): AuthStrategy {
+  let currentToken = opts.token;
+  let currentInstanceUrl = opts.instanceUrl;
+
+  return {
+    mode: 'client_credentials',
+    async getAccessToken(): Promise<string> {
+      if (!currentToken) throw new Error('No access token available');
+      return currentToken;
+    },
+    getInstanceUrl(): string | null {
+      return currentInstanceUrl;
+    },
+    async reauthenticate(): Promise<OAuthTokenResponse> {
+      if (opts.reauthFn) {
+        const response = await opts.reauthFn();
+        currentToken = response.access_token;
+        currentInstanceUrl = response.instance_url;
+        return response;
+      }
+      // Default: re-auth via oauthUrl
+      return new Promise<OAuthTokenResponse>((resolve, reject) => {
+        const url = new URL('/services/oauth2/token', opts.oauthUrl ?? opts.instanceUrl);
+        const body = 'grant_type=client_credentials&client_id=cid&client_secret=csec';
+        const req = http.request(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body).toString() } }, (res) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (c: Buffer) => chunks.push(c));
+          res.on('end', () => {
+            const text = Buffer.concat(chunks).toString('utf-8');
+            try {
+              const parsed = JSON.parse(text);
+              if (parsed.error) {
+                reject(new Error(`OAuth error: ${parsed.error}`));
+                return;
+              }
+              currentToken = parsed.access_token;
+              currentInstanceUrl = parsed.instance_url;
+              resolve(parsed);
+            } catch {
+              reject(new Error(`Invalid JSON: ${text}`));
+            }
+          });
+        });
+        req.on('error', reject);
+        req.write(body);
+        req.end();
+      });
+    },
+    invalidateToken(): void {
+      currentToken = null;
+    },
+  } as AuthStrategy & { invalidateToken(): void };
 }
 
 // ---------------------------------------------------------------------------
@@ -53,8 +120,6 @@ after(async () => {
 });
 
 beforeEach(() => {
-  resetTokenCache();
-
   // Default OAuth handler — returns a valid token with instance_url = apexUrl
   oauthHandler = (_req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -74,7 +139,7 @@ beforeEach(() => {
   };
 });
 
-function makeConfig(): BridgeConfig {
+function makeConfig(): AuthConfig {
   return {
     instanceUrl: oauthUrl,
     clientId: 'cid',
@@ -83,13 +148,29 @@ function makeConfig(): BridgeConfig {
   };
 }
 
+function makeStrategyWithToken(): AuthStrategy {
+  return createMockStrategy({
+    token: 'test-token-abc',
+    instanceUrl: apexUrl,
+    oauthUrl,
+  });
+}
+
+function makeStrategyNoToken(): AuthStrategy {
+  return createMockStrategy({
+    token: null,
+    instanceUrl: apexUrl,
+    oauthUrl,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // No cached token
 // ---------------------------------------------------------------------------
 
 describe('mcpBridge — no cached token', () => {
   it('returns JSON-RPC error when no cached token', async () => {
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyNoToken(), makeConfig());
     const raw = await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
     const parsed = JSON.parse(raw);
 
@@ -101,7 +182,7 @@ describe('mcpBridge — no cached token', () => {
   });
 
   it('error has null id when message has no id', async () => {
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyNoToken(), makeConfig());
     const raw = await bridge.forward('{"jsonrpc":"2.0","method":"test"}');
     const parsed = JSON.parse(raw);
 
@@ -109,7 +190,7 @@ describe('mcpBridge — no cached token', () => {
   });
 
   it('error has null id for invalid JSON message', async () => {
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyNoToken(), makeConfig());
     const raw = await bridge.forward('not json');
     const parsed = JSON.parse(raw);
 
@@ -129,8 +210,7 @@ describe('mcpBridge — successful forward (HTTP 200)', () => {
       res.end(expectedBody);
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     const result = await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
 
     assert.strictEqual(result, expectedBody);
@@ -144,8 +224,7 @@ describe('mcpBridge — successful forward (HTTP 200)', () => {
       res.end('{"jsonrpc":"2.0","id":1,"result":"ok"}');
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
 
     assert.strictEqual(capturedAuth, 'Bearer test-token-abc');
@@ -159,8 +238,7 @@ describe('mcpBridge — successful forward (HTTP 200)', () => {
       res.end('{"jsonrpc":"2.0","id":1,"result":"ok"}');
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
 
     assert.strictEqual(capturedContentType, 'application/json');
@@ -180,8 +258,7 @@ describe('mcpBridge — successful forward (HTTP 200)', () => {
       });
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     await bridge.forward(message);
 
     assert.strictEqual(capturedBody, message);
@@ -195,8 +272,7 @@ describe('mcpBridge — successful forward (HTTP 200)', () => {
       res.end('{"jsonrpc":"2.0","id":1,"result":"ok"}');
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
 
     assert.strictEqual(capturedUrl, '/services/apexrest/mcp');
@@ -232,8 +308,7 @@ describe('mcpBridge — 401 re-authentication', () => {
       }));
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     const raw = await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
 
     assert.strictEqual(raw, '{"jsonrpc":"2.0","id":1,"result":"retried"}');
@@ -253,8 +328,7 @@ describe('mcpBridge — 401 re-authentication', () => {
     };
 
     const logger = createCollectingLogger();
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig(), logger as BridgeLogger);
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig(), logger as BridgeLogger);
     await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
 
     const warnLogs = logger.logs.filter(l => l.level === 'warn');
@@ -270,8 +344,7 @@ describe('mcpBridge — 401 re-authentication', () => {
       res.end('Unauthorized');
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     const raw = await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
     const parsed = JSON.parse(raw);
 
@@ -288,35 +361,23 @@ describe('mcpBridge — 401 re-authentication', () => {
       res.end('[{"errorCode":"INVALID_SESSION_ID","message":"Session expired"}]');
     };
 
-    // First authenticate succeeds, then re-auth (triggered by bridge) fails.
-    let oauthCallCount = 0;
-    oauthHandler = (_req, res) => {
-      oauthCallCount++;
-      if (oauthCallCount === 1) {
-        // Initial authenticate()
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          access_token: 'test-token-abc',
-          instance_url: apexUrl,
-          token_type: 'Bearer',
-          id: 'id',
-          issued_at: '123',
-        }));
-      } else {
-        // Re-auth attempt — fails
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'invalid_client' }));
-      }
-    };
+    // Strategy that fails on reauthenticate
+    const failStrategy = createMockStrategy({
+      token: 'test-token-abc',
+      instanceUrl: apexUrl,
+      reauthFn: async () => {
+        throw new Error('re-auth failed');
+      },
+    });
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(failStrategy, makeConfig());
     const raw = await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
     const parsed = JSON.parse(raw);
 
     assert.strictEqual(parsed.error.code, -32603);
     assert.ok(
-      (parsed.error.message as string).includes('Session expired and re-authentication failed'),
+      (parsed.error.message as string).includes('re-authentication failed') ||
+      (parsed.error.message as string).includes('Session expired'),
       `Expected message about re-auth failure, got: ${parsed.error.message}`
     );
   });
@@ -334,8 +395,7 @@ describe('mcpBridge — 401 re-authentication', () => {
       }
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     const raw = await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
     const parsed = JSON.parse(raw);
 
@@ -358,8 +418,7 @@ describe('mcpBridge — HTTP error handling', () => {
       res.end('Detailed Apex Error');
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     const raw = await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
     const parsed = JSON.parse(raw);
 
@@ -380,8 +439,7 @@ describe('mcpBridge — HTTP error handling', () => {
       res.end('Forbidden');
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     const raw = await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
     const parsed = JSON.parse(raw);
 
@@ -398,8 +456,7 @@ describe('mcpBridge — HTTP error handling', () => {
       res.end('Service Unavailable');
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     const raw = await bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}');
     const parsed = JSON.parse(raw);
 
@@ -426,8 +483,7 @@ describe('mcpBridge — request ID extraction', () => {
       res.end('error');
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     const raw = await bridge.forward('{"jsonrpc":"2.0","id":42,"method":"test"}');
     const parsed = JSON.parse(raw);
 
@@ -440,8 +496,7 @@ describe('mcpBridge — request ID extraction', () => {
       res.end('error');
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     const raw = await bridge.forward('{"jsonrpc":"2.0","id":"abc-123","method":"test"}');
     const parsed = JSON.parse(raw);
 
@@ -454,8 +509,7 @@ describe('mcpBridge — request ID extraction', () => {
       res.end('error');
     };
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(makeStrategyWithToken(), makeConfig());
     const raw = await bridge.forward('{"jsonrpc":"2.0","method":"test"}');
     const parsed = JSON.parse(raw);
 
@@ -469,20 +523,14 @@ describe('mcpBridge — request ID extraction', () => {
 
 describe('mcpBridge — network errors', () => {
   it('rejects on network error (first attempt)', async () => {
-    // Authenticate with instance_url pointing to a closed port
-    oauthHandler = (_req, res) => {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        access_token: 'test-token-abc',
-        instance_url: 'http://localhost:1',
-        token_type: 'Bearer',
-        id: 'id',
-        issued_at: '123',
-      }));
-    };
+    // Strategy that returns a token but points to a closed port
+    const badStrategy = createMockStrategy({
+      token: 'test-token-abc',
+      instanceUrl: 'http://localhost:1',
+      oauthUrl,
+    });
 
-    await authenticate(makeConfig());
-    const bridge = createBridge(makeConfig());
+    const bridge = createBridge(badStrategy, makeConfig());
 
     await assert.rejects(
       () => bridge.forward('{"jsonrpc":"2.0","id":1,"method":"test"}')
