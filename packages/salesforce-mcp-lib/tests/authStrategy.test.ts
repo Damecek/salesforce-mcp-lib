@@ -8,8 +8,14 @@ import {
   createAuthStrategy,
   type AuthStrategy,
 } from '../src/authStrategy.js';
+import { ClientCredentialsStrategy } from '../src/oauth.js';
 import { LoginRequiredError } from '../src/errors.js';
-import type { AuthConfig, OAuthTokenResponse } from '../src/types.js';
+import { saveTokens } from '../src/tokenStore.js';
+import type {
+  AuthConfig,
+  OAuthTokenResponse,
+  PerUserTokenData,
+} from '../src/types.js';
 
 const logger = {
   debug: () => {},
@@ -24,6 +30,18 @@ function makeConfig(overrides?: Partial<AuthConfig>): AuthConfig {
     clientId: 'test-client-id',
     endpoint: '/services/apexrest/mcp',
     logLevel: 'info',
+    ...overrides,
+  };
+}
+
+function makeTokenData(overrides?: Partial<PerUserTokenData>): PerUserTokenData {
+  return {
+    accessToken: 'stored-access-token',
+    refreshToken: 'stored-refresh-token',
+    instanceUrl: 'https://test.salesforce.com',
+    tokenType: 'Bearer',
+    issuedAt: 1700000000000,
+    identityUrl: 'https://login.salesforce.com/id/00Dxx/005xx',
     ...overrides,
   };
 }
@@ -88,5 +106,21 @@ describe('createAuthStrategy per-user interactive policy', () => {
 
     assert.equal(token, fakeResponse.access_token);
     assert.equal(invoked, true);
+  });
+
+  it('uses client credentials mode when clientSecret is configured even if stored tokens exist', () => {
+    saveTokens(
+      'https://test.salesforce.com',
+      'test-client-id',
+      makeTokenData(),
+    );
+
+    const strategy = createAuthStrategy(
+      makeConfig({ clientSecret: 'test-client-secret' }),
+      logger,
+    );
+
+    assert.ok(strategy instanceof ClientCredentialsStrategy);
+    assert.equal(strategy.mode, 'client_credentials');
   });
 });

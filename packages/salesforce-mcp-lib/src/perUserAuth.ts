@@ -130,7 +130,10 @@ export async function refreshAccessToken(
     return parseTokenResponse(responseBody, instanceUrl);
   } catch (err) {
     // invalid_grant during refresh means the refresh token is expired/revoked.
-    if (err instanceof InvalidCredentialsError) {
+    if (
+      err instanceof InvalidCredentialsError &&
+      err.oauthError === "invalid_grant"
+    ) {
       throw new SessionExpiredError(
         "Your session has expired and the refresh token is no longer valid. Please log in again.",
       );

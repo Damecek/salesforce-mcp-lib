@@ -17,6 +17,8 @@ export interface CallbackServerOptions {
   timeout?: number;
   /** Expected state value for CSRF verification. */
   expectedState?: string;
+  /** Callback host shown in the redirect URL. Defaults to localhost. */
+  callbackHost?: string;
 }
 
 /** Handle to the running callback server. */
@@ -69,6 +71,7 @@ export function startCallbackServer(
   const basePort = options?.port ?? 13338;
   const timeout = options?.timeout ?? 120_000;
   const expectedState = options?.expectedState;
+  const callbackHost = options?.callbackHost ?? 'localhost';
   const maxAttempts = 5;
 
   return new Promise<CallbackServer>((resolveStart, rejectStart) => {
@@ -153,10 +156,20 @@ export function startCallbackServer(
       }
     });
 
-    function tryListen(port: number, attempt: number): void {
-      server.once('error', (err: NodeJS.ErrnoException) => {
+    function tryListen(
+      port: number,
+      attempt: number,
+      listenOptions: { host: string; ipv6Only?: boolean }
+    ): void {
+      const onError = (err: NodeJS.ErrnoException): void => {
+        server.removeListener('listening', onListening);
         if (err.code === 'EADDRINUSE' && attempt < maxAttempts) {
-          tryListen(port + 1, attempt + 1);
+          tryListen(port + 1, attempt + 1, listenOptions);
+        } else if (
+          listenOptions.host === '::' &&
+          (err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL')
+        ) {
+          tryListen(port, attempt, { host: '127.0.0.1' });
         } else {
           rejectStart(
             new Error(
@@ -164,11 +177,12 @@ export function startCallbackServer(
             )
           );
         }
-      });
+      };
 
-      server.listen(port, '127.0.0.1', () => {
+      const onListening = (): void => {
+        server.removeListener('error', onError);
         const actualPort = (server.address() as { port: number }).port;
-        const callbackUrl = `http://localhost:${actualPort}/oauth/callback`;
+        const callbackUrl = `http://${callbackHost}:${actualPort}/oauth/callback`;
 
         // Set timeout for code reception.
         timeoutHandle = setTimeout(() => {
@@ -197,9 +211,13 @@ export function startCallbackServer(
         };
 
         resolveStart(callbackServer);
-      });
+      };
+
+      server.once('error', onError);
+      server.once('listening', onListening);
+      server.listen({ port, ...listenOptions });
     }
 
-    tryListen(basePort, 1);
+    tryListen(basePort, 1, { host: '::', ipv6Only: false });
   });
 }

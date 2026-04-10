@@ -9,7 +9,6 @@ import type {
   AuthConfig,
   AuthMode,
   OAuthTokenResponse,
-  PerUserTokenData,
 } from "./types.js";
 import type { BridgeLogger } from "./mcpBridge.js";
 import { ClientCredentialsStrategy } from "./oauth.js";
@@ -18,6 +17,7 @@ import { loadTokens, saveTokens, deleteTokens } from "./tokenStore.js";
 import type { LoadTokensResult } from "./tokenStore.js";
 import { LoginRequiredError, SessionExpiredError } from "./errors.js";
 import type { BridgeConfig } from "./types.js";
+import { buildPerUserTokenData } from "./perUserTokenData.js";
 
 /** Abstract authentication strategy. Both flows implement this. */
 export interface AuthStrategy {
@@ -221,15 +221,7 @@ export class PerUserAuthStrategy implements AuthStrategy {
     this.cachedToken = response.access_token;
     this.cachedInstanceUrl = response.instance_url;
 
-    // Build persisted token data.
-    const tokenData: PerUserTokenData = {
-      accessToken: response.access_token,
-      refreshToken: response.refresh_token ?? this.cachedRefreshToken ?? "",
-      instanceUrl: response.instance_url,
-      tokenType: response.token_type,
-      issuedAt: parseInt(response.issued_at, 10) || Date.now(),
-      identityUrl: response.id,
-    };
+    const tokenData = buildPerUserTokenData(response, this.cachedRefreshToken ?? undefined);
 
     // Update cached refresh token if a new one was issued.
     if (tokenData.refreshToken) {
@@ -286,20 +278,31 @@ export class PerUserAuthStrategy implements AuthStrategy {
 /**
  * Create the appropriate auth strategy based on config and stored state.
  *
- * Detection priority:
- * 1. Stored per-user tokens exist → PerUserAuthStrategy (even if client_secret is in config)
- * 2. client_secret present, no stored tokens → ClientCredentialsStrategy
- * 3. No client_secret, no stored tokens → PerUserAuthStrategy
+ * Detection priority follows the public CLI contract:
+ * 1. client_secret present → ClientCredentialsStrategy
+ * 2. client_secret absent → PerUserAuthStrategy
  *
- * This allows a single External Client App to support both flows — the user can
- * provide client_secret for the initial token exchange while still using
- * per-user identity via Authorization Code flow.
+ * Stored per-user tokens are only consulted after authorization_code mode
+ * has been selected.
  */
 export function createAuthStrategy(
   config: AuthConfig,
   logger: BridgeLogger,
   options: CreateAuthStrategyOptions = {},
 ): AuthStrategy {
+  const mode = detectAuthMode(config);
+  if (mode === "client_credentials") {
+    // ClientCredentialsStrategy expects BridgeConfig (with required clientSecret).
+    const bridgeConfig: BridgeConfig = {
+      instanceUrl: config.instanceUrl,
+      clientId: config.clientId,
+      clientSecret: config.clientSecret!,
+      endpoint: config.endpoint,
+      logLevel: config.logLevel,
+    };
+    return new ClientCredentialsStrategy(bridgeConfig, logger);
+  }
+
   // Load tokens once and forward the result to avoid a second disk read
   // inside the PerUserAuthStrategy constructor.
   const stored = loadTokens(config.instanceUrl, config.clientId);
@@ -314,20 +317,7 @@ export function createAuthStrategy(
     });
   }
 
-  const mode = detectAuthMode(config);
-  if (mode === "client_credentials") {
-    // ClientCredentialsStrategy expects BridgeConfig (with required clientSecret).
-    const bridgeConfig: BridgeConfig = {
-      instanceUrl: config.instanceUrl,
-      clientId: config.clientId,
-      clientSecret: config.clientSecret!,
-      endpoint: config.endpoint,
-      logLevel: config.logLevel,
-    };
-    return new ClientCredentialsStrategy(bridgeConfig, logger);
-  }
-
-  // No stored tokens, no client_secret → per-user auth.
+  // No stored tokens, client_secret absent → per-user auth.
   // Pass the already-loaded result so the constructor doesn't read again.
   return new PerUserAuthStrategy(config, logger, {
     allowInteractiveLogin: options.allowInteractiveLogin,

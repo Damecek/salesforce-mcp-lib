@@ -17,7 +17,7 @@ import { createLogger, startStdioListener } from "./stdio.js";
 import { createAuthStrategy, PerUserAuthStrategy } from "./authStrategy.js";
 import { performLogin } from "./perUserAuth.js";
 import { saveTokens } from "./tokenStore.js";
-import type { PerUserTokenData } from "./types.js";
+import { buildPerUserTokenData } from "./perUserTokenData.js";
 import {
   InvalidCredentialsError,
   InsufficientAccessError,
@@ -78,15 +78,7 @@ async function runLogin(): Promise<void> {
       loginSecrets.push(tokenResponse.refresh_token);
     }
 
-    // Build persisted token data.
-    const tokenData: PerUserTokenData = {
-      accessToken: tokenResponse.access_token,
-      refreshToken: tokenResponse.refresh_token ?? "",
-      instanceUrl: tokenResponse.instance_url,
-      tokenType: tokenResponse.token_type,
-      issuedAt: parseInt(tokenResponse.issued_at, 10) || Date.now(),
-      identityUrl: tokenResponse.id,
-    };
+    const tokenData = buildPerUserTokenData(tokenResponse);
 
     // Persist tokens.
     saveTokens(config.instanceUrl, config.clientId, tokenData);
