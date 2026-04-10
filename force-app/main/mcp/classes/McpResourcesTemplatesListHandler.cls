@@ -6,7 +6,7 @@
  * and MIME type. The response format conforms to the MCP
  * {@code resources/templates/list} result specification.</p>
  */
-public class McpResourcesTemplatesListHandler extends JsonRpcMethodHandler {
+public inherited sharing class McpResourcesTemplatesListHandler extends JsonRpcMethodHandler {
 
     private final List<McpResourceTemplateDefinition> templates;
 

@@ -1,7 +1,7 @@
 /**
  * Example resource exposing org information.
  */
-public class ExampleOrgResource extends McpResourceDefinition {
+public with sharing class ExampleOrgResource extends McpResourceDefinition {
     public ExampleOrgResource() {
         this.uri = 'salesforce://org/info';
         this.name = 'Org Information';

@@ -1,7 +1,7 @@
 /**
  * Example tool that queries Account records by name.
  */
-public class ExampleQueryTool extends McpToolDefinition {
+public with sharing class ExampleQueryTool extends McpToolDefinition {
     public ExampleQueryTool() {
         this.name = 'query_accounts';
         this.description = 'Search for Account records by name';

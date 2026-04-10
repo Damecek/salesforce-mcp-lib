@@ -6,7 +6,7 @@
  * the core request-processing pipeline does not depend directly on
  * {@code RestContext} statics.</p>
  */
-public class McpHttpTransport {
+public inherited sharing class McpHttpTransport {
 
     private final RestRequest req;
     private final RestResponse res;

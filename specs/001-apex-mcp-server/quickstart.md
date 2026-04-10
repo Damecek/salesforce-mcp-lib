@@ -43,7 +43,7 @@ You should see `SalesforceMcpLib` in the installed packages list.
 Create a new Apex class in your org that extends `McpToolDefinition`:
 
 ```apex
-public class QueryAccountsTool extends McpToolDefinition {
+public with sharing class QueryAccountsTool extends McpToolDefinition {
 
     public QueryAccountsTool() {
         this.name = 'query_accounts';
@@ -89,11 +89,11 @@ public class QueryAccountsTool extends McpToolDefinition {
 
 ### 2b. Create the REST Endpoint
 
-Create a `@RestResource` class that registers your tool and delegates to the framework:
+Create a `@RestResource` class that registers your tool and delegates to the framework. In this unlocked package, framework base classes remain `public`; the endpoint itself is `global` because Apex REST entry points require it:
 
 ```apex
 @RestResource(urlMapping='/mcp/v1')
-global class MyMcpEndpoint {
+global inherited sharing class MyMcpEndpoint {
 
     @HttpPost
     global static void handlePost() {
@@ -107,6 +107,8 @@ global class MyMcpEndpoint {
     }
 }
 ```
+
+`inherited sharing` and `with sharing` help enforce record-level sharing defaults, but they don't enforce CRUD/FLS by themselves.
 
 ### 2c. Deploy to Your Org
 
@@ -191,7 +193,7 @@ Restart Claude Desktop. The Salesforce tools are now available to Claude.
 ### Add a Resource
 
 ```apex
-public class OrgInfoResource extends McpResourceDefinition {
+public with sharing class OrgInfoResource extends McpResourceDefinition {
 
     public OrgInfoResource() {
         this.uri = 'salesforce://org/info';
@@ -216,7 +218,7 @@ public class OrgInfoResource extends McpResourceDefinition {
 ### Add a Prompt
 
 ```apex
-public class DescribeObjectPrompt extends McpPromptDefinition {
+public inherited sharing class DescribeObjectPrompt extends McpPromptDefinition {
 
     public DescribeObjectPrompt() {
         this.name = 'describe_object';
@@ -248,7 +250,7 @@ public class DescribeObjectPrompt extends McpPromptDefinition {
 
 ```apex
 @RestResource(urlMapping='/mcp/v1')
-global class MyMcpEndpoint {
+global inherited sharing class MyMcpEndpoint {
 
     @HttpPost
     global static void handlePost() {
@@ -293,7 +295,7 @@ You can create multiple `@RestResource` endpoints with different capability sets
 
 ```apex
 @RestResource(urlMapping='/mcp/sales')
-global class SalesMcpEndpoint {
+global inherited sharing class SalesMcpEndpoint {
     @HttpPost
     global static void handlePost() {
         McpServer server = new McpServer();
@@ -304,7 +306,7 @@ global class SalesMcpEndpoint {
 }
 
 @RestResource(urlMapping='/mcp/support')
-global class SupportMcpEndpoint {
+global inherited sharing class SupportMcpEndpoint {
     @HttpPost
     global static void handlePost() {
         McpServer server = new McpServer();

@@ -5,7 +5,7 @@
  * and returning its content. Unknown URIs produce a JSON-RPC error response
  * with code {@code -32602} (invalid params).</p>
  */
-public class McpResourcesReadHandler extends JsonRpcMethodHandler {
+public inherited sharing class McpResourcesReadHandler extends JsonRpcMethodHandler {
 
     private final Map<String, McpResourceDefinition> resourcesByUri;
 

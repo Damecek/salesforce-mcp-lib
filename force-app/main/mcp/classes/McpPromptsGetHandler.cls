@@ -3,7 +3,7 @@
  * Looks up a prompt by name, invokes it with the provided arguments,
  * and returns the generated messages.
  */
-public class McpPromptsGetHandler extends JsonRpcMethodHandler {
+public inherited sharing class McpPromptsGetHandler extends JsonRpcMethodHandler {
     private final Map<String, McpPromptDefinition> promptsByName;
 
     public McpPromptsGetHandler(List<McpPromptDefinition> prompts) {

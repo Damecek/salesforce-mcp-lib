@@ -59,7 +59,7 @@ public class McpServer {
 
 ```apex
 @RestResource(urlMapping='/mcp/v1')
-global class MyMcpEndpoint {
+global inherited sharing class MyMcpEndpoint {
 
     @HttpPost
     global static void handlePost() {
@@ -81,7 +81,10 @@ global class MyMcpEndpoint {
 }
 ```
 
-**Note**: Registration happens on every request because Apex `@RestResource` endpoints are stateless. This is by design — it allows subscribers to conditionally register capabilities based on the running user's permissions or other per-request context.
+**Notes**:
+- Registration happens on every request because Apex `@RestResource` endpoints are stateless. This is by design — it allows subscribers to conditionally register capabilities based on the running user's permissions or other per-request context.
+- In this 2GP unlocked package, subscriber-facing framework classes remain `public`; the endpoint is `global` only because it is an Apex REST entry point.
+- `inherited sharing` and `with sharing` control record-level sharing behavior only. They don't enforce object permissions or field-level security by themselves.
 
 ---
 
@@ -132,7 +135,7 @@ public abstract class McpToolDefinition {
 ### Subscriber Implementation Example
 
 ```apex
-public class QueryAccountsTool extends McpToolDefinition {
+public with sharing class QueryAccountsTool extends McpToolDefinition {
 
     public QueryAccountsTool() {
         this.name = 'query_accounts';
