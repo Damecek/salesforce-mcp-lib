@@ -12,14 +12,14 @@
 - Q: How does the system determine whether to use per-user auth or client credentials? → A: Auto-detect from credentials — if `client_secret` is present, use client credentials; if absent, use per-user login. No new config flags required.
 - Q: Can a user explicitly log out or switch to a different Salesforce user? → A: No explicit logout. Sessions persist until expired or revoked server-side. To switch users, the user manually deletes stored credentials.
 - Q: Should some operations fall back to a service account in per-user mode? → A: No. All operations run under the authenticated user's identity — no service account fallback. Salesforce enforces permissions natively.
-- Q: Should admins use a single Connected App for both flows or separate ones? → A: Not prescribed — admin's choice. The system must work regardless of whether the same or separate Connected Apps are used for client credentials vs. per-user login.
+- Q: Should admins use a single External Client App for both flows or separate ones? → A: Not prescribed — admin's choice. The system must work regardless of whether the same or separate External Client Apps are used for client credentials vs. per-user login.
 - Q: How should headless login work when no browser is available locally? → A: Manual URL — system prints an authorization URL to the terminal; user opens it on any device, authorizes, and then pastes the full callback URL back into the terminal so the state parameter can be validated.
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Individual User Login (Priority: P1)
 
-As a user of the MCP-connected application, I want to log in using my own dedicated Salesforce account so that all my actions in the system are performed under my own identity, with my own permissions, visibility, and audit trail.
+As a user of the MCP-External Client Application, I want to log in using my own dedicated Salesforce account so that all my actions in the system are performed under my own identity, with my own permissions, visibility, and audit trail.
 
 Currently the system uses a single shared service account (client credentials) for all requests. This means every user sees the same data, has the same permissions, and all actions are logged under one generic account. With per-user authentication, each person logs in as themselves - they see only the data they are authorized to see, can only perform actions their Salesforce profile allows, and their activity is individually traceable.
 
@@ -32,7 +32,7 @@ Currently the system uses a single shared service account (client credentials) f
 1. **Given** a user has not yet logged in, **When** they start the MCP client, **Then** they are guided through a login process that authenticates them with their own Salesforce credentials
 2. **Given** a user has completed the login process, **When** they make requests through MCP tools, **Then** those requests execute under their individual Salesforce identity (visible in Salesforce audit logs as their user)
 3. **Given** a user is logged in, **When** they access Salesforce data, **Then** they see only the records their Salesforce profile and sharing rules allow them to see
-4. **Given** a user has never used the system before, **When** they attempt to log in, **Then** the login process completes without requiring any pre-configuration beyond having a valid Salesforce user account with access to the Connected App
+4. **Given** a user has never used the system before, **When** they attempt to log in, **Then** the login process completes without requiring any pre-configuration beyond having a valid Salesforce user account with access to the External Client App
 
 ---
 
@@ -71,14 +71,14 @@ As an administrator of a deployment that uses the current client credentials flo
 
 As a user who encounters a login problem, I want clear error messages that help me understand what went wrong and how to fix it, so that I can resolve authentication issues without needing administrator help.
 
-**Why this priority**: Per-user auth introduces more potential failure points than client credentials (user password changes, revoked access, expired sessions, Connected App misconfiguration). Good error guidance reduces support burden.
+**Why this priority**: Per-user auth introduces more potential failure points than client credentials (user password changes, revoked access, expired sessions, External Client App misconfiguration). Good error guidance reduces support burden.
 
 **Independent Test**: Can be tested by deliberately triggering various auth failure scenarios and verifying each produces a helpful, actionable error message.
 
 **Acceptance Scenarios**:
 
 1. **Given** a user's Salesforce credentials are invalid, **When** they attempt to log in, **Then** they receive a message explaining the credentials were rejected and suggesting next steps
-2. **Given** a user's account does not have access to the Connected App, **When** they attempt to log in, **Then** they receive a message explaining they need Connected App access and whom to contact
+2. **Given** a user's account does not have access to the External Client App, **When** they attempt to log in, **Then** they receive a message explaining they need External Client App access and whom to contact
 3. **Given** the Salesforce org is unreachable, **When** a user attempts to log in, **Then** they receive a message indicating a connectivity issue distinct from a credentials issue
 
 ---
@@ -87,7 +87,7 @@ As a user who encounters a login problem, I want clear error messages that help 
 
 - What happens when two different users try to use the same MCP client instance simultaneously? The system supports only one authenticated user per instance at a time, with clear feedback if a second user attempts to connect. To switch users, the user must manually delete the stored credentials and restart.
 - What happens when a user's Salesforce account is deactivated mid-session? The system should detect the access revocation on the next request and notify the user that their session is no longer valid.
-- What happens when the Connected App's OAuth settings are changed while users have active sessions? Existing sessions should continue working until their tokens expire naturally; new logins should use the updated settings.
+- What happens when the External Client App's OAuth settings are changed while users have active sessions? Existing sessions should continue working until their tokens expire naturally; new logins should use the updated settings.
 - What happens if the user denies consent during the login process? The system should display a clear message explaining that consent is required for the application to function and offer to retry.
 - What happens if the MCP client runs in a headless environment where no browser is available? The system prints an authorization URL to the terminal; the user opens it on any device, authorizes, and then the system completes login automatically or accepts the pasted full callback URL.
 
@@ -110,7 +110,7 @@ As a user who encounters a login problem, I want clear error messages that help 
 ### Key Entities
 
 - **Authenticated User Session**: Represents a single user's active connection to Salesforce - includes the user's identity, access credentials, org information, and session expiry. One session per MCP client instance.
-- **Authentication Configuration**: Represents the system-level settings that determine which authentication mode to use (per-user vs. client credentials) and the associated Connected App parameters.
+- **Authentication Configuration**: Represents the system-level settings that determine which authentication mode to use (per-user vs. client credentials) and the associated External Client App parameters.
 - **Credential Store**: Secure local storage for persisted session data that survives client restarts. Must protect sensitive data at rest.
 
 ## Success Criteria *(mandatory)*
@@ -127,13 +127,13 @@ As a user who encounters a login problem, I want clear error messages that help 
 ## Assumptions
 
 - Users have a valid Salesforce user account in the target org with an active license
-- The Salesforce org has an **External Client App** (API v60+) or **Connected App** configured for OAuth 2.0 Authorization Code flow with PKCE; administrators may reuse the same app for both flows or create separate ones — the system must work with either setup
-- The External Client App / Connected App has `http://localhost:13338/oauth/callback` as a registered callback URL, with OAuth scopes `api` and `refresh_token` (`offline_access`) enabled
+- The Salesforce org has an **External Client App** (API v60+) or **External Client App** configured for OAuth 2.0 Authorization Code flow with PKCE; administrators may reuse the same app for both flows or create separate ones — the system must work with either setup
+- The External Client App / External Client App has `http://localhost:13338/oauth/callback` as a registered callback URL, with OAuth scopes `api` and `refresh_token` (`offline_access`) enabled
 - Users have a web browser available on the same machine for the primary login flow (a fallback exists for headless environments)
 - The MCP client runs on the user's local machine (not a shared server), so one authenticated session per instance is sufficient
 - The existing client credentials flow is automatically selected when `client_secret` is provided; per-user auth activates when `client_secret` is absent — no explicit mode flag needed
 - Secure file-based storage (`~/.salesforce-mcp-lib/tokens/`, permissions 0600) is used for persisting session credentials
 - Network connectivity to Salesforce is available during login and during active usage (offline operation is out of scope)
-- The Salesforce org administrator is responsible for configuring the External Client App / Connected App and granting user access to it; this feature does not automate the Salesforce-side setup — see quickstart.md for a detailed setup guide
+- The Salesforce org administrator is responsible for configuring the External Client App / External Client App and granting user access to it; this feature does not automate the Salesforce-side setup — see quickstart.md for a detailed setup guide
 - No explicit logout or user-switching command is in scope; sessions persist until expired/revoked, and users delete stored credentials manually to switch accounts
 - Auth is invoked as a separate `login` step before starting the MCP server. MCP clients (Claude Code, Claude Desktop) start the server as a subprocess; users authenticate via the `login` subcommand in their terminal, then the MCP client's server connects using the stored tokens

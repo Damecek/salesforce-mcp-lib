@@ -63,4 +63,6 @@ Example: `v1.0.3-sf1.1.0-3` means npm `salesforce-mcp-lib@1.0.3` + SF `Salesforc
 - npm: `packages/salesforce-mcp-lib/package.json` → `"version"`
 - SF 2GP: `sfdx-project.json` → latest entry in `"packageAliases"`
 
+
+External Client App instead of Connected App everywhere
 <!-- MANUAL ADDITIONS END -->

@@ -13,9 +13,9 @@ The runtime configuration type. Backward compatible — all existing BridgeConfi
 interface AuthConfig {
   /** Salesforce instance URL (e.g., https://myorg.my.salesforce.com). Required. */
   instanceUrl: string;
-  /** Connected App consumer key (client_id). Required. */
+  /** External Client App consumer key (client_id). Required. */
   clientId: string;
-  /** Connected App consumer secret. Present → client credentials; absent → per-user auth. */
+  /** External Client App consumer secret. Present → client credentials; absent → per-user auth. */
   clientSecret?: string;
   /** Apex REST endpoint path (e.g., /services/apexrest/mcp). Required. */
   endpoint: string;
@@ -166,7 +166,7 @@ class InvalidCredentialsError extends SalesforceAuthError {
   constructor(message: string, public readonly oauthError?: string);
 }
 
-/** User doesn't have access to the Connected App or required permissions. */
+/** User doesn't have access to the External Client App or required permissions. */
 class InsufficientAccessError extends SalesforceAuthError {
   constructor(message: string, public readonly oauthError?: string);
 }

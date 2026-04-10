@@ -10,17 +10,14 @@
  * T024 — refresh_token added to secrets list for redaction.
  */
 
-import process from 'node:process';
-import { parseConfig, parseLoginConfig, isLoginSubcommand } from './config.js';
-import { createBridge } from './mcpBridge.js';
-import { createLogger, startStdioListener } from './stdio.js';
-import {
-  createAuthStrategy,
-  PerUserAuthStrategy,
-} from './authStrategy.js';
-import { performLogin } from './perUserAuth.js';
-import { saveTokens } from './tokenStore.js';
-import type { PerUserTokenData } from './types.js';
+import process from "node:process";
+import { parseConfig, parseLoginConfig, isLoginSubcommand } from "./config.js";
+import { createBridge } from "./mcpBridge.js";
+import { createLogger, startStdioListener } from "./stdio.js";
+import { createAuthStrategy, PerUserAuthStrategy } from "./authStrategy.js";
+import { performLogin } from "./perUserAuth.js";
+import { saveTokens } from "./tokenStore.js";
+import type { PerUserTokenData } from "./types.js";
 import {
   InvalidCredentialsError,
   InsufficientAccessError,
@@ -28,7 +25,7 @@ import {
   ConsentDeniedError,
   LoginRequiredError,
   SessionExpiredError,
-} from './errors.js';
+} from "./errors.js";
 
 /**
  * Redact known secrets from a string so they never appear in logs.
@@ -38,7 +35,7 @@ export function redactSecrets(text: string, secrets: string[]): string {
   let redacted = text;
   for (const secret of secrets) {
     if (secret.length > 0) {
-      redacted = redacted.replaceAll(secret, '****');
+      redacted = redacted.replaceAll(secret, "****");
     }
   }
   return redacted;
@@ -51,7 +48,7 @@ export function redactSecrets(text: string, secrets: string[]): string {
 async function runLogin(): Promise<void> {
   const config = parseLoginConfig();
 
-  const rawLogger = createLogger(config.logLevel ?? 'info');
+  const rawLogger = createLogger(config.logLevel ?? "info");
   const loginSecrets: string[] = [];
   if (config.clientSecret) loginSecrets.push(config.clientSecret);
   const logger = {
@@ -61,13 +58,11 @@ async function runLogin(): Promise<void> {
     error: (msg: string) => rawLogger.error(redactSecrets(msg, loginSecrets)),
   };
 
-  logger.info('salesforce-mcp-lib login');
+  logger.info("salesforce-mcp-lib login");
   logger.info(`  instance-url : ${config.instanceUrl}`);
-  logger.info(
-    `  client-id    : ${config.clientId.slice(0, 8)}...(redacted)`
-  );
+  logger.info(`  client-id    : ${config.clientId.slice(0, 8)}...(redacted)`);
   if (config.clientSecret) {
-    logger.info('  client-secret: ****(redacted)');
+    logger.info("  client-secret: ****(redacted)");
   }
   logger.info(`  headless     : ${config.headless ?? false}`);
   logger.info(`  callback-port: ${config.callbackPort ?? 13338}`);
@@ -86,7 +81,7 @@ async function runLogin(): Promise<void> {
     // Build persisted token data.
     const tokenData: PerUserTokenData = {
       accessToken: tokenResponse.access_token,
-      refreshToken: tokenResponse.refresh_token ?? '',
+      refreshToken: tokenResponse.refresh_token ?? "",
       instanceUrl: tokenResponse.instance_url,
       tokenType: tokenResponse.token_type,
       issuedAt: parseInt(tokenResponse.issued_at, 10) || Date.now(),
@@ -107,25 +102,25 @@ async function runLogin(): Promise<void> {
     // T023: Specific error handling with actionable messages.
     if (err instanceof InvalidCredentialsError) {
       logger.error(
-        `Authentication failed: credentials rejected. Verify client_id or run login again.`
+        `Authentication failed: credentials rejected. Verify client_id or run login again.`,
       );
       process.exit(2);
     }
     if (err instanceof InsufficientAccessError) {
       logger.error(
-        `Authentication failed: user lacks Connected App access. Contact your Salesforce administrator.`
+        `Authentication failed: user lacks External Client App access. Contact your Salesforce administrator.`,
       );
       process.exit(2);
     }
     if (err instanceof ConsentDeniedError) {
       logger.error(
-        `Authentication failed: consent required. Please retry login and click "Allow".`
+        `Authentication failed: consent required. Please retry login and click "Allow".`,
       );
       process.exit(2);
     }
     if (err instanceof ConnectivityError) {
       logger.error(
-        `Authentication failed: cannot reach ${config.instanceUrl}. Check your network connection and instance URL.`
+        `Authentication failed: cannot reach ${config.instanceUrl}. Check your network connection and instance URL.`,
       );
       process.exit(2);
     }
@@ -133,7 +128,7 @@ async function runLogin(): Promise<void> {
     const rawMsg = err instanceof Error ? err.message : String(err);
 
     // Check for timeout.
-    if (rawMsg.includes('timed out') || rawMsg.includes('timeout')) {
+    if (rawMsg.includes("timed out") || rawMsg.includes("timeout")) {
       logger.error(`Login timed out: ${rawMsg}`);
       process.exit(3);
     }
@@ -159,7 +154,7 @@ async function runServer(): Promise<void> {
   }
 
   // 2. Create logger that automatically redacts secrets.
-  const rawLogger = createLogger(config.logLevel ?? 'info');
+  const rawLogger = createLogger(config.logLevel ?? "info");
   const logger = {
     debug: (msg: string) => rawLogger.debug(redactSecrets(msg, secrets)),
     info: (msg: string) => rawLogger.info(redactSecrets(msg, secrets)),
@@ -168,22 +163,22 @@ async function runServer(): Promise<void> {
   };
 
   // Log startup info.
-  logger.info('salesforce-mcp-lib starting');
+  logger.info("salesforce-mcp-lib starting");
   logger.info(`  instance-url : ${config.instanceUrl}`);
-  logger.info(
-    `  client-id    : ${config.clientId.slice(0, 8)}...(redacted)`
-  );
+  logger.info(`  client-id    : ${config.clientId.slice(0, 8)}...(redacted)`);
   if (config.clientSecret) {
-    logger.info('  client-secret: ****(redacted)');
+    logger.info("  client-secret: ****(redacted)");
   }
   logger.info(`  endpoint     : ${config.endpoint}`);
-  logger.info(`  log-level    : ${config.logLevel ?? 'info'}`);
+  logger.info(`  log-level    : ${config.logLevel ?? "info"}`);
 
   // 3. Create auth strategy (may detect stored per-user tokens).
   const strategy = createAuthStrategy(config, logger, {
     allowInteractiveLogin: false,
   });
-  logger.info(`  auth-mode    : ${strategy.mode === 'client_credentials' ? 'client_credentials' : 'per-user (authorization code)'}`);
+  logger.info(
+    `  auth-mode    : ${strategy.mode === "client_credentials" ? "client_credentials" : "per-user (authorization code)"}`,
+  );
 
   // 4. Authenticate.
   try {
@@ -201,7 +196,7 @@ async function runServer(): Promise<void> {
     // Validate the token structure.
     if (!token || token.length < 20) {
       throw new Error(
-        'OAuth token validation failed: received token is malformed or too short'
+        "OAuth token validation failed: received token is malformed or too short",
       );
     }
 
@@ -212,13 +207,13 @@ async function runServer(): Promise<void> {
         new URL(instanceUrl);
       } catch {
         throw new Error(
-          `OAuth token validation failed: instance_url is not a valid URL: ${instanceUrl}`
+          `OAuth token validation failed: instance_url is not a valid URL: ${instanceUrl}`,
         );
       }
     }
 
     logger.info(
-      `Authenticated successfully (instance: ${instanceUrl ?? config.instanceUrl})`
+      `Authenticated successfully (instance: ${instanceUrl ?? config.instanceUrl})`,
     );
   } catch (err: unknown) {
     // T023: Specific error subclass handling.
@@ -232,25 +227,25 @@ async function runServer(): Promise<void> {
     }
     if (err instanceof InvalidCredentialsError) {
       logger.error(
-        'Authentication failed: credentials rejected. Verify client_id and Connected App settings, or run login again.'
+        "Authentication failed: credentials rejected. Verify client_id and External Client App settings, or run login again.",
       );
       process.exit(2);
     }
     if (err instanceof InsufficientAccessError) {
       logger.error(
-        'Authentication failed: user lacks Connected App access. Contact your Salesforce administrator.'
+        "Authentication failed: user lacks External Client App access. Contact your Salesforce administrator.",
       );
       process.exit(2);
     }
     if (err instanceof ConnectivityError) {
       logger.error(
-        `Authentication failed: cannot reach ${config.instanceUrl}. Check your network connection and instance URL.`
+        `Authentication failed: cannot reach ${config.instanceUrl}. Check your network connection and instance URL.`,
       );
       process.exit(2);
     }
     if (err instanceof ConsentDeniedError) {
       logger.error(
-        'Authentication failed: consent required. Retry login and click "Allow".'
+        'Authentication failed: consent required. Retry login and click "Allow".',
       );
       process.exit(2);
     }
@@ -259,7 +254,7 @@ async function runServer(): Promise<void> {
     const safeMsg = redactSecrets(rawMsg, secrets);
     logger.error(`Authentication failed: ${safeMsg}`);
     logger.error(
-      'Startup aborted — check instance URL, client credentials, and External Client App configuration'
+      "Startup aborted — check instance URL, client credentials, and External Client App configuration",
     );
     process.exit(1);
   }
@@ -268,7 +263,7 @@ async function runServer(): Promise<void> {
   const bridge = createBridge(strategy, config, logger);
 
   // 6. Start stdio listener — forward every inbound message through the bridge.
-  logger.info('Listening on stdin for JSON-RPC messages');
+  logger.info("Listening on stdin for JSON-RPC messages");
   startStdioListener((message) => bridge.forward(message), logger);
 }
 

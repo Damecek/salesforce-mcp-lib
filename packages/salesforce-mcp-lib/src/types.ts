@@ -61,9 +61,9 @@ export interface JsonRpcMessage {
 export interface AuthConfig {
   /** Salesforce instance URL (e.g., https://myorg.my.salesforce.com). Required. */
   instanceUrl: string;
-  /** Connected App consumer key (client_id). Required. */
+  /** External Client App consumer key (client_id). Required. */
   clientId: string;
-  /** Connected App consumer secret. Present → client credentials; absent → per-user auth. */
+  /** External Client App consumer secret. Present → client credentials; absent → per-user auth. */
   clientSecret?: string;
   /** Apex REST endpoint path (e.g., /services/apexrest/mcp). Required in server mode. */
   endpoint: string;
@@ -76,7 +76,7 @@ export interface AuthConfig {
 }
 
 /** Determined at startup from config shape. Immutable for process lifetime. */
-export type AuthMode = 'client_credentials' | 'authorization_code';
+export type AuthMode = "client_credentials" | "authorization_code";
 
 /** Serialized to JSON and stored in ~/.salesforce-mcp-lib/tokens/{key}.json */
 export interface PerUserTokenData {

@@ -78,7 +78,7 @@ packages/salesforce-mcp-lib/tests/
 
 **Structure Decision**: Follows the existing single-package layout under `packages/salesforce-mcp-lib/src/`. Each new concern gets its own module file. No new directories in src/ — flat module structure consistent with existing codebase (6 files → 10 files).
 
-**Salesforce-Side Prerequisite**: An External Client App (API v60+) or Connected App must be configured with OAuth Authorization Code + PKCE flow, callback URL `http://localhost:13338/oauth/callback`, and scopes `api` + `refresh_token`. See `quickstart.md` for detailed setup instructions.
+**Salesforce-Side Prerequisite**: An External Client App (API v60+) or External Client App must be configured with OAuth Authorization Code + PKCE flow, callback URL `http://localhost:13338/oauth/callback`, and scopes `api` + `refresh_token`. See `quickstart.md` for detailed setup instructions.
 
 ## Complexity Tracking
 
@@ -117,11 +117,11 @@ packages/salesforce-mcp-lib/tests/
 
 **Chosen**: Start `node:http` server on port `13338` (configurable via `--callback-port`) to receive OAuth redirect.
 
-**Why**: Standard approach for CLI OAuth tools. Fixed port simplifies Connected App configuration (admin adds `http://localhost:13338/oauth/callback` once). Falls back to auto-detect an available port if default is occupied. The Salesforce CLI itself uses this pattern (port 1717).
+**Why**: Standard approach for CLI OAuth tools. Fixed port simplifies External Client App configuration (admin adds `http://localhost:13338/oauth/callback` once). Falls back to auto-detect an available port if default is occupied. The Salesforce CLI itself uses this pattern (port 1717).
 
 **Rejected**:
 - Out-of-band redirect (urn:ietf:wg:oauth:2.0:oob): Deprecated by Salesforce
-- Random port each time: Admin would need wildcard callback URL configuration, not supported by Salesforce Connected Apps
+- Random port each time: Admin would need wildcard callback URL configuration, not supported by Salesforce External Client Apps
 - Polling-based: Adds latency, complexity, and additional API calls
 
 ### D4: Separate Login Subcommand for All MCP Client Integrations

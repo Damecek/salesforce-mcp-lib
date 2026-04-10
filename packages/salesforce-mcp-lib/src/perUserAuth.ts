@@ -9,19 +9,15 @@
  * T026 — Callback error parsing, state validation for CSRF.
  */
 
-import crypto from 'node:crypto';
-import https from 'node:https';
-import http from 'node:http';
-import { execFile } from 'node:child_process';
-import { createInterface } from 'node:readline';
-import { URL, URLSearchParams } from 'node:url';
-import process from 'node:process';
-import type {
-  AuthConfig,
-  OAuthTokenResponse,
-  PkceChallenge,
-} from './types.js';
-import type { BridgeLogger } from './mcpBridge.js';
+import crypto from "node:crypto";
+import https from "node:https";
+import http from "node:http";
+import { execFile } from "node:child_process";
+import { createInterface } from "node:readline";
+import { URL, URLSearchParams } from "node:url";
+import process from "node:process";
+import type { AuthConfig, OAuthTokenResponse, PkceChallenge } from "./types.js";
+import type { BridgeLogger } from "./mcpBridge.js";
 import {
   InvalidCredentialsError,
   InsufficientAccessError,
@@ -29,8 +25,8 @@ import {
   ConnectivityError,
   SessionExpiredError,
   SalesforceAuthError,
-} from './errors.js';
-import { startCallbackServer } from './callbackServer.js';
+} from "./errors.js";
+import { startCallbackServer } from "./callbackServer.js";
 
 // ---------------------------------------------------------------------------
 // PKCE helpers (T006)
@@ -39,11 +35,11 @@ import { startCallbackServer } from './callbackServer.js';
 /** Generate a PKCE code_verifier and code_challenge pair. */
 export function generatePkceChallenge(): PkceChallenge {
   // 32 random bytes → 43-char base64url string (RFC 7636 recommends 32-96 bytes).
-  const codeVerifier = crypto.randomBytes(32).toString('base64url');
+  const codeVerifier = crypto.randomBytes(32).toString("base64url");
   const codeChallenge = crypto
-    .createHash('sha256')
+    .createHash("sha256")
     .update(codeVerifier)
-    .digest('base64url');
+    .digest("base64url");
   return { codeVerifier, codeChallenge };
 }
 
@@ -55,15 +51,15 @@ export function buildAuthorizeUrl(
   clientId: string,
   redirectUri: string,
   codeChallenge: string,
-  state: string
+  state: string,
 ): string {
-  const url = new URL('/services/oauth2/authorize', instanceUrl);
-  url.searchParams.set('response_type', 'code');
-  url.searchParams.set('client_id', clientId);
-  url.searchParams.set('redirect_uri', redirectUri);
-  url.searchParams.set('code_challenge', codeChallenge);
-  url.searchParams.set('code_challenge_method', 'S256');
-  url.searchParams.set('state', state);
+  const url = new URL("/services/oauth2/authorize", instanceUrl);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("client_id", clientId);
+  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("code_challenge", codeChallenge);
+  url.searchParams.set("code_challenge_method", "S256");
+  url.searchParams.set("state", state);
   return url.toString();
 }
 
@@ -81,22 +77,22 @@ export async function exchangeCodeForTokens(
   code: string,
   redirectUri: string,
   codeVerifier: string,
-  clientSecret?: string
+  clientSecret?: string,
 ): Promise<OAuthTokenResponse> {
   const params: Record<string, string> = {
-    grant_type: 'authorization_code',
+    grant_type: "authorization_code",
     code,
     client_id: clientId,
     redirect_uri: redirectUri,
     code_verifier: codeVerifier,
   };
-  // Include client_secret if the Connected App requires it.
+  // Include client_secret if the External Client App requires it.
   if (clientSecret) {
-    params['client_secret'] = clientSecret;
+    params["client_secret"] = clientSecret;
   }
   const body = new URLSearchParams(params).toString();
 
-  const tokenUrl = new URL('/services/oauth2/token', instanceUrl);
+  const tokenUrl = new URL("/services/oauth2/token", instanceUrl);
   const responseBody = await postForm(tokenUrl, body);
   return parseTokenResponse(responseBody, instanceUrl);
 }
@@ -116,19 +112,19 @@ export async function refreshAccessToken(
   instanceUrl: string,
   clientId: string,
   refreshToken: string,
-  clientSecret?: string
+  clientSecret?: string,
 ): Promise<OAuthTokenResponse> {
   const params: Record<string, string> = {
-    grant_type: 'refresh_token',
+    grant_type: "refresh_token",
     refresh_token: refreshToken,
     client_id: clientId,
   };
   if (clientSecret) {
-    params['client_secret'] = clientSecret;
+    params["client_secret"] = clientSecret;
   }
   const body = new URLSearchParams(params).toString();
 
-  const tokenUrl = new URL('/services/oauth2/token', instanceUrl);
+  const tokenUrl = new URL("/services/oauth2/token", instanceUrl);
   try {
     const responseBody = await postForm(tokenUrl, body);
     return parseTokenResponse(responseBody, instanceUrl);
@@ -136,7 +132,7 @@ export async function refreshAccessToken(
     // invalid_grant during refresh means the refresh token is expired/revoked.
     if (err instanceof InvalidCredentialsError) {
       throw new SessionExpiredError(
-        'Your session has expired and the refresh token is no longer valid. Please log in again.'
+        "Your session has expired and the refresh token is no longer valid. Please log in again.",
       );
     }
     throw err;
@@ -157,15 +153,15 @@ export function openBrowser(url: string): Promise<boolean> {
     let cmd: string;
     let args: string[];
 
-    if (platform === 'darwin') {
-      cmd = 'open';
+    if (platform === "darwin") {
+      cmd = "open";
       args = [url];
-    } else if (platform === 'win32') {
-      cmd = 'cmd';
-      args = ['/c', 'start', '', url];
+    } else if (platform === "win32") {
+      cmd = "cmd";
+      args = ["/c", "start", "", url];
     } else {
       // Linux and others
-      cmd = 'xdg-open';
+      cmd = "xdg-open";
       args = [url];
     }
 
@@ -187,11 +183,11 @@ export function openBrowser(url: string): Promise<boolean> {
  */
 export async function performLogin(
   config: AuthConfig,
-  logger: BridgeLogger
+  logger: BridgeLogger,
 ): Promise<OAuthTokenResponse> {
   // Generate PKCE challenge.
   const pkce = generatePkceChallenge();
-  const state = crypto.randomBytes(16).toString('hex');
+  const state = crypto.randomBytes(16).toString("hex");
 
   // Start callback server.
   const callbackPort = config.callbackPort ?? 13338;
@@ -208,17 +204,17 @@ export async function performLogin(
       config.clientId,
       server.callbackUrl,
       pkce.codeChallenge,
-      state
+      state,
     );
 
     if (config.headless) {
       // Headless mode: print URL and also start server in case redirect works.
-      logger.info('Headless mode — printing authorization URL');
+      logger.info("Headless mode — printing authorization URL");
       process.stderr.write(
-        `\nPlease open this URL in a browser to authorize:\n${authorizeUrl}\n\n`
+        `\nPlease open this URL in a browser to authorize:\n${authorizeUrl}\n\n`,
       );
       process.stderr.write(
-        'After authorizing, paste the full callback URL (timeout: 120s):\n'
+        "After authorizing, paste the full callback URL (timeout: 120s):\n",
       );
 
       // Race between callback server and stdin paste.
@@ -227,45 +223,39 @@ export async function performLogin(
         readCodeFromStdin(server.callbackUrl, state),
       ]);
 
-      logger.info(
-        'Authorization received. Exchanging code for tokens...'
-      );
+      logger.info("Authorization received. Exchanging code for tokens...");
       const tokens = await exchangeCodeForTokens(
         config.instanceUrl,
         config.clientId,
         codeResult.code,
         server.callbackUrl,
         pkce.codeVerifier,
-        config.clientSecret
+        config.clientSecret,
       );
       return tokens;
     } else {
       // Interactive mode: open browser.
-      logger.info('Opening browser for Salesforce login...');
+      logger.info("Opening browser for Salesforce login...");
       const opened = await openBrowser(authorizeUrl);
 
       if (!opened) {
         logger.warn(
-          'Could not open browser automatically. Please open this URL manually:'
+          "Could not open browser automatically. Please open this URL manually:",
         );
         process.stderr.write(`\n${authorizeUrl}\n\n`);
       }
 
-      logger.info(
-        `Waiting for authorization at ${server.callbackUrl}`
-      );
+      logger.info(`Waiting for authorization at ${server.callbackUrl}`);
       const codeResult = await server.waitForCode();
 
-      logger.info(
-        'Authorization received. Exchanging code for tokens...'
-      );
+      logger.info("Authorization received. Exchanging code for tokens...");
       const tokens = await exchangeCodeForTokens(
         config.instanceUrl,
         config.clientId,
         codeResult.code,
         server.callbackUrl,
         pkce.codeVerifier,
-        config.clientSecret
+        config.clientSecret,
       );
       return tokens;
     }
@@ -284,7 +274,7 @@ export async function performLogin(
  */
 function readCodeFromStdin(
   callbackUrl: string,
-  expectedState: string
+  expectedState: string,
 ): Promise<{ code: string; state: string }> {
   return new Promise((resolve, reject) => {
     const rl = createInterface({
@@ -292,29 +282,29 @@ function readCodeFromStdin(
       terminal: false,
     });
 
-    rl.once('line', (line) => {
+    rl.once("line", (line) => {
       rl.close();
       const trimmed = line.trim();
       if (!trimmed) {
         reject(
           new Error(
-            'Empty input received. Paste the full callback URL shown after authorization.'
-          )
+            "Empty input received. Paste the full callback URL shown after authorization.",
+          ),
         );
         return;
       }
 
       try {
-        resolve(parseHeadlessCallbackInput(trimmed, callbackUrl, expectedState));
+        resolve(
+          parseHeadlessCallbackInput(trimmed, callbackUrl, expectedState),
+        );
       } catch (err) {
         reject(err);
       }
     });
 
-    rl.once('close', () => {
-      reject(
-        new Error('stdin closed without receiving the full callback URL')
-      );
+    rl.once("close", () => {
+      reject(new Error("stdin closed without receiving the full callback URL"));
     });
   });
 }
@@ -322,12 +312,12 @@ function readCodeFromStdin(
 export function parseHeadlessCallbackInput(
   input: string,
   callbackUrl: string,
-  expectedState: string
+  expectedState: string,
 ): { code: string; state: string } {
   const trimmed = input.trim();
   if (!trimmed) {
     throw new Error(
-      'Empty input received. Paste the full callback URL shown after authorization.'
+      "Empty input received. Paste the full callback URL shown after authorization.",
     );
   }
 
@@ -336,7 +326,7 @@ export function parseHeadlessCallbackInput(
     parsedUrl = new URL(trimmed);
   } catch {
     throw new Error(
-      'Invalid input received. Paste the full callback URL from the browser address bar.'
+      "Invalid input received. Paste the full callback URL from the browser address bar.",
     );
   }
 
@@ -346,27 +336,27 @@ export function parseHeadlessCallbackInput(
     parsedUrl.pathname !== expectedUrl.pathname
   ) {
     throw new Error(
-      `Invalid callback URL. Paste the full callback URL for ${callbackUrl}.`
+      `Invalid callback URL. Paste the full callback URL for ${callbackUrl}.`,
     );
   }
 
-  const code = parsedUrl.searchParams.get('code');
+  const code = parsedUrl.searchParams.get("code");
   if (!code) {
     throw new Error(
-      'Missing authorization code in callback URL. Paste the full callback URL from the browser address bar.'
+      "Missing authorization code in callback URL. Paste the full callback URL from the browser address bar.",
     );
   }
 
-  const state = parsedUrl.searchParams.get('state');
+  const state = parsedUrl.searchParams.get("state");
   if (!state) {
     throw new Error(
-      'Missing state in callback URL. Paste the full callback URL from the browser address bar.'
+      "Missing state in callback URL. Paste the full callback URL from the browser address bar.",
     );
   }
 
   if (state !== expectedState) {
     throw new Error(
-      'OAuth state mismatch. Paste the full callback URL from the current login attempt.'
+      "OAuth state mismatch. Paste the full callback URL from the current login attempt.",
     );
   }
 
@@ -379,46 +369,43 @@ export function parseHeadlessCallbackInput(
  */
 function parseTokenResponse(
   responseBody: string,
-  fallbackInstanceUrl: string
+  fallbackInstanceUrl: string,
 ): OAuthTokenResponse {
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(responseBody) as Record<string, unknown>;
   } catch {
     throw new SalesforceAuthError(
-      `OAuth response is not valid JSON: ${responseBody.slice(0, 200)}`
+      `OAuth response is not valid JSON: ${responseBody.slice(0, 200)}`,
     );
   }
 
   // Map Salesforce error codes to specific error subclasses (T020).
-  if (typeof parsed['error'] === 'string') {
-    const errorCode = parsed['error'] as string;
+  if (typeof parsed["error"] === "string") {
+    const errorCode = parsed["error"] as string;
     const desc =
-      typeof parsed['error_description'] === 'string'
-        ? (parsed['error_description'] as string)
-        : 'unknown';
+      typeof parsed["error_description"] === "string"
+        ? (parsed["error_description"] as string)
+        : "unknown";
 
     throw mapOAuthError(errorCode, desc);
   }
 
-  if (typeof parsed['access_token'] !== 'string') {
-    throw new SalesforceAuthError(
-      'OAuth response missing access_token'
-    );
+  if (typeof parsed["access_token"] !== "string") {
+    throw new SalesforceAuthError("OAuth response missing access_token");
   }
 
   const response: OAuthTokenResponse = {
-    access_token: parsed['access_token'] as string,
-    instance_url:
-      (parsed['instance_url'] as string) ?? fallbackInstanceUrl,
-    token_type: (parsed['token_type'] as string) ?? 'Bearer',
-    id: (parsed['id'] as string) ?? '',
-    issued_at: (parsed['issued_at'] as string) ?? String(Date.now()),
+    access_token: parsed["access_token"] as string,
+    instance_url: (parsed["instance_url"] as string) ?? fallbackInstanceUrl,
+    token_type: (parsed["token_type"] as string) ?? "Bearer",
+    id: (parsed["id"] as string) ?? "",
+    issued_at: (parsed["issued_at"] as string) ?? String(Date.now()),
   };
 
   // Include refresh_token if present (Authorization Code flow returns it).
-  if (typeof parsed['refresh_token'] === 'string') {
-    response.refresh_token = parsed['refresh_token'] as string;
+  if (typeof parsed["refresh_token"] === "string") {
+    response.refresh_token = parsed["refresh_token"] as string;
   }
 
   return response;
@@ -430,33 +417,33 @@ function parseTokenResponse(
  */
 function mapOAuthError(errorCode: string, description: string): Error {
   switch (errorCode) {
-    case 'invalid_grant':
+    case "invalid_grant":
       return new InvalidCredentialsError(
         `Your Salesforce credentials were rejected. Check your username and password, or try logging in again. (${description})`,
-        errorCode
+        errorCode,
       );
-    case 'invalid_client_id':
+    case "invalid_client_id":
       return new InvalidCredentialsError(
-        `The Connected App client ID is not recognized. Verify the client_id in your configuration. (${description})`,
-        errorCode
+        `The External Client App client ID is not recognized. Verify the client_id in your configuration. (${description})`,
+        errorCode,
       );
-    case 'invalid_client':
+    case "invalid_client":
       return new InvalidCredentialsError(
-        `Connected App authentication failed. Verify client_id and Connected App settings. (${description})`,
-        errorCode
+        `External Client App authentication failed. Verify client_id and External Client App settings. (${description})`,
+        errorCode,
       );
-    case 'unauthorized_client':
+    case "unauthorized_client":
       return new InsufficientAccessError(
-        `Your Salesforce user does not have access to this Connected App. Contact your administrator. (${description})`,
-        errorCode
+        `Your Salesforce user does not have access to this External Client App. Contact your administrator. (${description})`,
+        errorCode,
       );
-    case 'access_denied':
+    case "access_denied":
       return new ConsentDeniedError(
-        `Authorization was denied. The application requires your consent to access Salesforce. (${description})`
+        `Authorization was denied. The application requires your consent to access Salesforce. (${description})`,
       );
     default:
       return new SalesforceAuthError(
-        `OAuth error: ${errorCode} — ${description}`
+        `OAuth error: ${errorCode} — ${description}`,
       );
   }
 }
@@ -467,33 +454,33 @@ function mapOAuthError(errorCode: string, description: string): Error {
  */
 function postForm(url: URL, body: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    const transport = url.protocol === 'https:' ? https : http;
+    const transport = url.protocol === "https:" ? https : http;
 
     const req = transport.request(
       url,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Content-Length': Buffer.byteLength(body).toString(),
-          Accept: 'application/json',
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Length": Buffer.byteLength(body).toString(),
+          Accept: "application/json",
         },
       },
       (res) => {
         const chunks: Buffer[] = [];
-        res.on('data', (chunk: Buffer) => chunks.push(chunk));
-        res.on('end', () => {
-          resolve(Buffer.concat(chunks).toString('utf-8'));
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () => {
+          resolve(Buffer.concat(chunks).toString("utf-8"));
         });
-      }
+      },
     );
 
-    req.on('error', (err: Error) => {
+    req.on("error", (err: Error) => {
       reject(
         new ConnectivityError(
           `Cannot reach ${url.origin}. Check your network connection and instance URL.`,
-          err
-        )
+          err,
+        ),
       );
     });
 

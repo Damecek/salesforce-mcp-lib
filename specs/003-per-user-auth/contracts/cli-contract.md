@@ -29,8 +29,8 @@ Interactive login flow that authenticates the user and stores tokens locally. Do
 | Flag | Env Var | Required | Default | Description |
 |------|---------|----------|---------|-------------|
 | `--instance-url` | `SF_INSTANCE_URL` | Yes | — | Salesforce instance URL |
-| `--client-id` | `SF_CLIENT_ID` | Yes | — | Connected App consumer key |
-| `--client-secret` | `SF_CLIENT_SECRET` | **No** ¹ | — | Connected App consumer secret |
+| `--client-id` | `SF_CLIENT_ID` | Yes | — | External Client App consumer key |
+| `--client-secret` | `SF_CLIENT_SECRET` | **No** ¹ | — | External Client App consumer secret |
 | `--endpoint` | `SF_ENDPOINT` | Yes | — | Apex REST endpoint path |
 | `--log-level` | `SF_LOG_LEVEL` | No | `info` | Log level (debug\|info\|warn\|error) |
 | `--callback-port` | `SF_CALLBACK_PORT` | No | `13338` | Local OAuth callback port |
@@ -42,7 +42,7 @@ Interactive login flow that authenticates the user and stores tokens locally. Do
 | Flag | Env Var | Required | Default | Description |
 |------|---------|----------|---------|-------------|
 | `--instance-url` | `SF_INSTANCE_URL` | Yes | — | Salesforce instance URL |
-| `--client-id` | `SF_CLIENT_ID` | Yes | — | Connected App consumer key |
+| `--client-id` | `SF_CLIENT_ID` | Yes | — | External Client App consumer key |
 | `--headless` | `SF_HEADLESS` | No | `false` | Print URL instead of opening browser |
 | `--callback-port` | `SF_CALLBACK_PORT` | No | `13338` | Local OAuth callback port |
 | `--log-level` | `SF_LOG_LEVEL` | No | `info` | Log level |
@@ -208,7 +208,7 @@ All human-readable output goes to stderr (stdout is reserved for JSON-RPC).
 
 ```
 [ERROR] Authentication failed: Your Salesforce credentials were rejected. Try logging in again with: salesforce-mcp-lib login --instance-url ...
-[ERROR] Authentication failed: Your Salesforce user does not have access to this Connected App. Contact your Salesforce administrator.
+[ERROR] Authentication failed: Your Salesforce user does not have access to this External Client App. Contact your Salesforce administrator.
 [ERROR] Authentication failed: Cannot reach https://myorg.my.salesforce.com. Check your network connection.
 [ERROR] No stored credentials found. Please log in first: salesforce-mcp-lib login --instance-url ... --client-id ...
 ```

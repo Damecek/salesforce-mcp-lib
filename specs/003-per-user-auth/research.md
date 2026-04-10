@@ -33,7 +33,7 @@
 - The `id` field in the token response is a URL that returns user identity info when fetched
 
 **Alternatives considered**:
-- JWT Bearer flow: Requires X.509 certificate upload to Connected App, complex admin setup
+- JWT Bearer flow: Requires X.509 certificate upload to External Client App, complex admin setup
 - Device Authorization Grant (RFC 8628): Not supported by Salesforce
 - Username-Password flow: Deprecated, does not support MFA, blocked on many orgs
 - SAML assertion flow: Not applicable for CLI/API tools
@@ -52,7 +52,7 @@
 
 **Key findings**:
 - Refresh tokens survive across process restarts (they're not session-bound)
-- Refresh tokens can be revoked by Salesforce admin (user deactivation, Connected App policy change)
+- Refresh tokens can be revoked by Salesforce admin (user deactivation, External Client App policy change)
 - A failed refresh (HTTP 400 with `invalid_grant`) means the user must re-authenticate interactively
 - The refresh response may or may not include a new refresh_token — if present, store the new one
 - No client_secret is needed for refresh when the original flow used PKCE
@@ -119,8 +119,8 @@
 **Rationale**: The OAuth redirect requires a local HTTP endpoint to receive the authorization code.
 
 **Key findings**:
-- The callback URL (`http://localhost:{port}/oauth/callback`) must be registered in the Connected App settings
-- Fixed default port (13338) simplifies Connected App configuration
+- The callback URL (`http://localhost:{port}/oauth/callback`) must be registered in the External Client App settings
+- Fixed default port (13338) simplifies External Client App configuration
 - If port is occupied, try incrementing (13339, 13340, ...) up to 5 attempts
 - Server should only accept GET requests to `/oauth/callback`
 - Server should shut down immediately after receiving the code
@@ -129,7 +129,7 @@
 - Timeout: If no callback received within 120 seconds, shut down and report error
 
 **Alternatives considered**:
-- Random port: Admin can't pre-configure Connected App callback URLs
+- Random port: Admin can't pre-configure External Client App callback URLs
 - Named pipe: Not portable, overly complex
 - Long-polling: Adds unnecessary complexity and latency
 
@@ -170,9 +170,9 @@
 | Salesforce Error | HTTP Status | Our Error Class | User Message |
 |-----------------|-------------|-----------------|--------------|
 | `invalid_grant` | 400 | `InvalidCredentialsError` | "Your Salesforce credentials were rejected. Check your username and password, or try logging in again." |
-| `invalid_client_id` | 400 | `InvalidCredentialsError` | "The Connected App client ID is not recognized. Verify the client_id in your configuration." |
-| `invalid_client` | 401 | `InvalidCredentialsError` | "Connected App authentication failed. Verify client_id and Connected App settings." |
-| `unauthorized_client` | 400 | `InsufficientAccessError` | "Your Salesforce user does not have access to this Connected App. Contact your administrator." |
+| `invalid_client_id` | 400 | `InvalidCredentialsError` | "The External Client App client ID is not recognized. Verify the client_id in your configuration." |
+| `invalid_client` | 401 | `InvalidCredentialsError` | "External Client App authentication failed. Verify client_id and External Client App settings." |
+| `unauthorized_client` | 400 | `InsufficientAccessError` | "Your Salesforce user does not have access to this External Client App. Contact your administrator." |
 | `access_denied` | 400 | `ConsentDeniedError` | "Authorization was denied. The application requires your consent to access Salesforce." |
 | `INVALID_SESSION_ID` | 401 | `SessionExpiredError` | "Your session has expired. Attempting to refresh..." |
 | Network error | N/A | `ConnectivityError` | "Cannot reach {instanceUrl}. Check your network connection and instance URL." |
@@ -191,15 +191,15 @@
 
 ## R8: Salesforce External Client App Setup
 
-**Decision**: Document External Client App as the recommended OAuth configuration path (API v60+), with Connected App as fallback.
+**Decision**: Document External Client App as the recommended OAuth configuration path (API v60+), with External Client App as fallback.
 
-**Rationale**: Salesforce introduced External Client Apps in Spring '24 (API v60) as the modern way to manage OAuth for external applications. They replace/supplement the classic Connected App model with a cleaner setup experience. Since our target API is v65.0, External Client App is the recommended path.
+**Rationale**: Salesforce introduced External Client Apps in Spring '24 (API v60) as the modern way to manage OAuth for external applications. They replace/supplement the classic External Client App model with a cleaner setup experience. Since our target API is v65.0, External Client App is the recommended path.
 
 **Key findings**:
 
-| Aspect | External Client App (v60+) | Connected App (all versions) |
+| Aspect | External Client App (v60+) | External Client App (all versions) |
 |--------|---------------------------|------------------------------|
-| Setup path | Setup → External Client App Manager | Setup → App Manager → New Connected App |
+| Setup path | Setup → External Client App Manager | Setup → App Manager → New External Client App |
 | PKCE support | First-class, explicit toggle | Checkbox in OAuth settings |
 | Client secret | Can be explicitly not required | Defaults to having a secret |
 | Distribution | Local / Managed | Admin-approved or self-service |

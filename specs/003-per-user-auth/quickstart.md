@@ -5,14 +5,14 @@
 ## Prerequisites
 
 1. **Salesforce org** with a user account you want to authenticate as
-2. **External Client App** (or Connected App) configured for OAuth 2.0 Authorization Code flow — see [Salesforce Setup](#1-salesforce-setup-external-client-app) below
+2. **External Client App** (or External Client App) configured for OAuth 2.0 Authorization Code flow — see [Salesforce Setup](#1-salesforce-setup-external-client-app) below
 3. **Node.js >= 20** installed
 
 ---
 
 ## 1. Salesforce Setup: External Client App
 
-An **External Client App** is the recommended way to configure OAuth in Salesforce (API v60+). If your org doesn't have External Client App Manager, use a classic Connected App — see [Alternative: Connected App Setup](#alternative-connected-app-setup).
+An **External Client App** is the recommended way to configure OAuth in Salesforce (API v60+). If your org doesn't have External Client App Manager, use a classic External Client App — see [Alternative: External Client App Setup](#alternative-connected-app-setup).
 
 ### Step-by-step
 
@@ -44,11 +44,11 @@ An **External Client App** is the recommended way to configure OAuth in Salesfor
 | **Instance URL** | Your Salesforce org URL | `https://myorg.my.salesforce.com` |
 | **Endpoint** | Your Apex REST endpoint path | `/services/apexrest/mcp/records` |
 
-### Alternative: Connected App Setup
+### Alternative: External Client App Setup
 
-If your org uses the classic Connected App model:
+If your org uses the classic External Client App model:
 
-1. Setup → App Manager → **New Connected App**
+1. Setup → App Manager → **New External Client App**
 2. **Enable OAuth Settings**: checked
 3. **Callback URL**: `http://localhost:13338/oauth/callback`
 4. **Selected OAuth Scopes**: `api`, `refresh_token`, `offline_access`
@@ -269,8 +269,8 @@ The command prints an authorization URL. Open it in any browser (even on a diffe
 | Problem | Solution |
 |---------|----------|
 | "No stored credentials found" | Run `npx salesforce-mcp-lib login` first |
-| "Connected App client ID is not recognized" | Verify `--client-id` matches the Consumer Key in your External Client App / Connected App |
-| "User does not have access to this Connected App" | In Salesforce Setup → External Client App → Policies → set "All users may self-authorize" or add your user's Profile/Permission Set |
+| "External Client App client ID is not recognized" | Verify `--client-id` matches the Consumer Key in your External Client App / External Client App |
+| "User does not have access to this External Client App" | In Salesforce Setup → External Client App → Policies → set "All users may self-authorize" or add your user's Profile/Permission Set |
 | "Authorization was denied" | Click "Allow" when prompted during login, or retry |
 | "Cannot reach instance" | Check network, VPN, and that the instance URL is correct |
 | "Session expired and refresh failed" | Password changed or admin revoked access. Run `login` again |

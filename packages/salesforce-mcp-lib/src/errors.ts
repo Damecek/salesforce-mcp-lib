@@ -7,7 +7,7 @@
 export class SalesforceAuthError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'SalesforceAuthError';
+    this.name = "SalesforceAuthError";
     // Restore prototype chain (required when extending built-ins in TS).
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -19,19 +19,19 @@ export class InvalidCredentialsError extends SalesforceAuthError {
 
   constructor(message: string, oauthError?: string) {
     super(message);
-    this.name = 'InvalidCredentialsError';
+    this.name = "InvalidCredentialsError";
     this.oauthError = oauthError;
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
-/** User doesn't have access to the Connected App or required permissions. */
+/** User doesn't have access to the External Client App or required permissions. */
 export class InsufficientAccessError extends SalesforceAuthError {
   readonly oauthError?: string;
 
   constructor(message: string, oauthError?: string) {
     super(message);
-    this.name = 'InsufficientAccessError';
+    this.name = "InsufficientAccessError";
     this.oauthError = oauthError;
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -41,7 +41,7 @@ export class InsufficientAccessError extends SalesforceAuthError {
 export class ConsentDeniedError extends SalesforceAuthError {
   constructor(message: string) {
     super(message);
-    this.name = 'ConsentDeniedError';
+    this.name = "ConsentDeniedError";
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -50,7 +50,7 @@ export class ConsentDeniedError extends SalesforceAuthError {
 export class LoginRequiredError extends SalesforceAuthError {
   constructor(message: string) {
     super(message);
-    this.name = 'LoginRequiredError';
+    this.name = "LoginRequiredError";
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -59,7 +59,7 @@ export class LoginRequiredError extends SalesforceAuthError {
 export class SessionExpiredError extends SalesforceAuthError {
   constructor(message: string) {
     super(message);
-    this.name = 'SessionExpiredError';
+    this.name = "SessionExpiredError";
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -70,7 +70,7 @@ export class ConnectivityError extends SalesforceAuthError {
 
   constructor(message: string, cause?: Error) {
     super(message);
-    this.name = 'ConnectivityError';
+    this.name = "ConnectivityError";
     this.cause = cause;
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -88,7 +88,7 @@ export class RemoteMcpError extends Error {
 
   constructor(message: string, statusCode: number, responseBody: string) {
     super(message);
-    this.name = 'RemoteMcpError';
+    this.name = "RemoteMcpError";
     this.statusCode = statusCode;
     this.responseBody = responseBody;
     Object.setPrototypeOf(this, new.target.prototype);

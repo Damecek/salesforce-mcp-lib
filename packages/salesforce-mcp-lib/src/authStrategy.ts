@@ -10,14 +10,14 @@ import type {
   AuthMode,
   OAuthTokenResponse,
   PerUserTokenData,
-} from './types.js';
-import type { BridgeLogger } from './mcpBridge.js';
-import { ClientCredentialsStrategy } from './oauth.js';
-import { performLogin, refreshAccessToken } from './perUserAuth.js';
-import { loadTokens, saveTokens, deleteTokens } from './tokenStore.js';
-import type { LoadTokensResult } from './tokenStore.js';
-import { LoginRequiredError, SessionExpiredError } from './errors.js';
-import type { BridgeConfig } from './types.js';
+} from "./types.js";
+import type { BridgeLogger } from "./mcpBridge.js";
+import { ClientCredentialsStrategy } from "./oauth.js";
+import { performLogin, refreshAccessToken } from "./perUserAuth.js";
+import { loadTokens, saveTokens, deleteTokens } from "./tokenStore.js";
+import type { LoadTokensResult } from "./tokenStore.js";
+import { LoginRequiredError, SessionExpiredError } from "./errors.js";
+import type { BridgeConfig } from "./types.js";
 
 /** Abstract authentication strategy. Both flows implement this. */
 export interface AuthStrategy {
@@ -36,7 +36,7 @@ export interface AuthStrategy {
  * client_secret present → client_credentials; absent → authorization_code.
  */
 export function detectAuthMode(config: AuthConfig): AuthMode {
-  return config.clientSecret ? 'client_credentials' : 'authorization_code';
+  return config.clientSecret ? "client_credentials" : "authorization_code";
 }
 
 export interface PerUserAuthStrategyOptions {
@@ -59,7 +59,7 @@ export interface CreateAuthStrategyOptions {
  * Manages cached tokens, refresh, and persistence.
  */
 export class PerUserAuthStrategy implements AuthStrategy {
-  readonly mode = 'authorization_code' as const;
+  readonly mode = "authorization_code" as const;
   private readonly config: AuthConfig;
   private readonly logger: BridgeLogger;
   private readonly allowInteractiveLogin: boolean;
@@ -72,7 +72,7 @@ export class PerUserAuthStrategy implements AuthStrategy {
   constructor(
     config: AuthConfig,
     logger: BridgeLogger,
-    options: PerUserAuthStrategyOptions = {}
+    options: PerUserAuthStrategyOptions = {},
   ) {
     this.config = config;
     this.logger = logger;
@@ -82,7 +82,8 @@ export class PerUserAuthStrategy implements AuthStrategy {
     // T015: Load stored tokens, using a pre-loaded result when provided
     // (avoids a redundant disk read when called from createAuthStrategy).
     const result =
-      options.preloadedTokens ?? loadTokens(config.instanceUrl, config.clientId);
+      options.preloadedTokens ??
+      loadTokens(config.instanceUrl, config.clientId);
     this.applyLoadResult(result);
   }
 
@@ -93,27 +94,27 @@ export class PerUserAuthStrategy implements AuthStrategy {
 
   private applyLoadResult(result: LoadTokensResult): void {
     switch (result.status) {
-      case 'loaded':
+      case "loaded":
         this.cachedToken = result.data.accessToken;
         this.cachedInstanceUrl = result.data.instanceUrl;
         this.cachedRefreshToken = result.data.refreshToken;
         this._tokensLoaded = true;
         this.logger.info(`Loaded stored tokens for ${this.config.instanceUrl}`);
         break;
-      case 'corrupt':
+      case "corrupt":
         this.logger.warn(
           `Stored token file is corrupt (${result.reason}) — ignoring. ` +
-            `Run "salesforce-mcp-lib login" to re-authenticate.`
+            `Run "salesforce-mcp-lib login" to re-authenticate.`,
         );
         deleteTokens(this.config.instanceUrl, this.config.clientId);
         break;
-      case 'error':
+      case "error":
         this.logger.warn(
-          `Could not read stored tokens: ${result.error.message}`
+          `Could not read stored tokens: ${result.error.message}`,
         );
         break;
-      case 'missing':
-        this.logger.info('No stored credentials found');
+      case "missing":
+        this.logger.info("No stored credentials found");
         break;
     }
   }
@@ -127,23 +128,23 @@ export class PerUserAuthStrategy implements AuthStrategy {
     // Try to refresh if we have a refresh token.
     if (this.cachedRefreshToken) {
       try {
-        this.logger.info('Refreshing access token...');
+        this.logger.info("Refreshing access token...");
         const response = await refreshAccessToken(
           this.config.instanceUrl,
           this.config.clientId,
           this.cachedRefreshToken,
-          this.config.clientSecret
+          this.config.clientSecret,
         );
         this.updateCachedTokens(response);
         this.logger.info(
-          `Token refreshed successfully (identity: ${response.id})`
+          `Token refreshed successfully (identity: ${response.id})`,
         );
         return response.access_token;
       } catch (err) {
         if (err instanceof SessionExpiredError) {
           // Refresh token is invalid — fall through to interactive login.
           this.logger.warn(
-            'Refresh token expired or revoked — stored tokens cleared, will re-login'
+            "Refresh token expired or revoked — stored tokens cleared, will re-login",
           );
           deleteTokens(this.config.instanceUrl, this.config.clientId);
           this.clearCache();
@@ -155,7 +156,7 @@ export class PerUserAuthStrategy implements AuthStrategy {
         }
         // Other errors — try login.
         this.logger.warn(
-          `Token refresh failed: ${err instanceof Error ? err.message : String(err)}`
+          `Token refresh failed: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     }
@@ -165,7 +166,7 @@ export class PerUserAuthStrategy implements AuthStrategy {
     if (!this.allowInteractiveLogin) {
       throw new LoginRequiredError(this.buildLoginRequiredMessage());
     }
-    this.logger.info('No stored credentials — starting browser login flow...');
+    this.logger.info("No stored credentials — starting browser login flow...");
     const response = await this.loginHandler(this.config, this.logger);
     this.updateCachedTokens(response);
     return response.access_token;
@@ -179,19 +180,19 @@ export class PerUserAuthStrategy implements AuthStrategy {
     // T015: Try refresh first, fall back to full login.
     if (this.cachedRefreshToken) {
       try {
-        this.logger.info('Attempting token refresh for re-authentication...');
+        this.logger.info("Attempting token refresh for re-authentication...");
         const response = await refreshAccessToken(
           this.config.instanceUrl,
           this.config.clientId,
           this.cachedRefreshToken,
-          this.config.clientSecret
+          this.config.clientSecret,
         );
         this.updateCachedTokens(response);
-        this.logger.info('Re-authentication via refresh succeeded');
+        this.logger.info("Re-authentication via refresh succeeded");
         return response;
       } catch (err) {
         this.logger.warn(
-          `Refresh failed during re-auth: ${err instanceof Error ? err.message : String(err)}`
+          `Refresh failed during re-auth: ${err instanceof Error ? err.message : String(err)}`,
         );
         // T025: Clear stored tokens on refresh failure (mid-session deactivation).
         if (err instanceof SessionExpiredError) {
@@ -210,7 +211,7 @@ export class PerUserAuthStrategy implements AuthStrategy {
     if (!this.allowInteractiveLogin) {
       throw new SessionExpiredError(this.buildSessionExpiredMessage());
     }
-    this.logger.info('Performing full re-authentication via login flow...');
+    this.logger.info("Performing full re-authentication via login flow...");
     const response = await this.loginHandler(this.config, this.logger);
     this.updateCachedTokens(response);
     return response;
@@ -223,7 +224,7 @@ export class PerUserAuthStrategy implements AuthStrategy {
     // Build persisted token data.
     const tokenData: PerUserTokenData = {
       accessToken: response.access_token,
-      refreshToken: response.refresh_token ?? this.cachedRefreshToken ?? '',
+      refreshToken: response.refresh_token ?? this.cachedRefreshToken ?? "",
       instanceUrl: response.instance_url,
       tokenType: response.token_type,
       issuedAt: parseInt(response.issued_at, 10) || Date.now(),
@@ -258,14 +259,14 @@ export class PerUserAuthStrategy implements AuthStrategy {
 
   private buildLoginRequiredMessage(): string {
     return (
-      'No stored credentials found. Please log in first: ' +
+      "No stored credentials found. Please log in first: " +
       this.buildLoginCommand()
     );
   }
 
   private buildSessionExpiredMessage(): string {
     return (
-      'Your session has expired and cannot be refreshed. Please log in again: ' +
+      "Your session has expired and cannot be refreshed. Please log in again: " +
       this.buildLoginCommand()
     );
   }
@@ -290,22 +291,22 @@ export class PerUserAuthStrategy implements AuthStrategy {
  * 2. client_secret present, no stored tokens → ClientCredentialsStrategy
  * 3. No client_secret, no stored tokens → PerUserAuthStrategy
  *
- * This allows a single Connected App to support both flows — the user can
+ * This allows a single External Client App to support both flows — the user can
  * provide client_secret for the initial token exchange while still using
  * per-user identity via Authorization Code flow.
  */
 export function createAuthStrategy(
   config: AuthConfig,
   logger: BridgeLogger,
-  options: CreateAuthStrategyOptions = {}
+  options: CreateAuthStrategyOptions = {},
 ): AuthStrategy {
   // Load tokens once and forward the result to avoid a second disk read
   // inside the PerUserAuthStrategy constructor.
   const stored = loadTokens(config.instanceUrl, config.clientId);
 
-  if (stored.status === 'loaded') {
+  if (stored.status === "loaded") {
     // Valid stored per-user tokens → always use per-user auth strategy.
-    logger.debug('Found stored per-user tokens — using per-user auth strategy');
+    logger.debug("Found stored per-user tokens — using per-user auth strategy");
     return new PerUserAuthStrategy(config, logger, {
       allowInteractiveLogin: options.allowInteractiveLogin,
       loginHandler: options.loginHandler,
@@ -314,7 +315,7 @@ export function createAuthStrategy(
   }
 
   const mode = detectAuthMode(config);
-  if (mode === 'client_credentials') {
+  if (mode === "client_credentials") {
     // ClientCredentialsStrategy expects BridgeConfig (with required clientSecret).
     const bridgeConfig: BridgeConfig = {
       instanceUrl: config.instanceUrl,
