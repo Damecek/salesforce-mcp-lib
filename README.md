@@ -45,11 +45,11 @@ sf package install --package 04tdL000000So9xQAC --target-org YOUR_ORG --wait 10
 
 ### 2. Create your MCP endpoint (2 Apex classes)
 
-**Endpoint** — a `@RestResource` that wires up your capabilities:
+**Endpoint** — a `@RestResource` that wires up your capabilities. In this unlocked package, the framework API stays `public`; the endpoint itself is `global` because Apex REST entry points require it:
 
 ```apex
 @RestResource(urlMapping='/mcp/minimal')
-global class MinimalMcpEndpoint {
+global inherited sharing class MinimalMcpEndpoint {
     @HttpPost
     global static void handlePost() {
         McpServer server = new McpServer();
@@ -59,10 +59,10 @@ global class MinimalMcpEndpoint {
 }
 ```
 
-**Tool** — extend `McpToolDefinition` and implement `inputSchema()`, `validate()`, `execute()`:
+**Tool** — extend the package's `public` `McpToolDefinition` base class and implement `inputSchema()`, `validate()`, `execute()`:
 
 ```apex
-public class MinimalTool extends McpToolDefinition {
+public inherited sharing class MinimalTool extends McpToolDefinition {
     public MinimalTool() {
         this.name = 'echo';
         this.description = 'Echoes the provided message back to the caller';
@@ -120,6 +120,8 @@ Add to your MCP client config (e.g. `claude_desktop_config.json`):
 
 That's it. The agent can now discover and invoke your Salesforce tools.
 
+`inherited sharing` and `with sharing` help enforce record-level access defaults, but they don't enforce CRUD/FLS by themselves. Use explicit security checks when your tool reads or writes protected fields or objects.
+
 ---
 
 ## All three MCP capabilities
@@ -128,7 +130,7 @@ Register tools, resources, and prompts in a single endpoint:
 
 ```apex
 @RestResource(urlMapping='/mcp/e2e')
-global class E2eHttpEndpoint {
+global inherited sharing class E2eHttpEndpoint {
     @HttpPost
     global static void handlePost() {
         McpServer server = new McpServer();
@@ -191,7 +193,14 @@ scripts/               # Build, deploy, and release scripts
 
 ## Contributing
 
-Contributions are welcome. Run the existing test suite before submitting:
+Contributions are welcome. Validate Apex changes in a fresh scratch org before submitting:
+
+```bash
+./scripts/org-create.sh your-alias
+./scripts/org-test.sh
+```
+
+`org-create.sh` provisions a new scratch org, sets it as default, and deploys `force-app`. `org-test.sh` then runs the Apex test suite in that org. Run the existing TypeScript test suite as well before submitting:
 
 ```bash
 cd packages/salesforce-mcp-lib && npm test && npm run lint

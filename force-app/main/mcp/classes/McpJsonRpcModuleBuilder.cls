@@ -8,7 +8,7 @@
  * {@code resources/templates/list}, {@code resources/templates/call}),
  * and prompt operations ({@code prompts/list}, {@code prompts/get}).</p>
  */
-public class McpJsonRpcModuleBuilder extends JsonRpcModuleBuilder {
+public inherited sharing class McpJsonRpcModuleBuilder extends JsonRpcModuleBuilder {
 
     private final List<McpToolDefinition> tools;
     private final List<McpResourceDefinition> resources;

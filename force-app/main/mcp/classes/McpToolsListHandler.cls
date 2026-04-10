@@ -6,7 +6,7 @@
  * annotations. The response format conforms to the MCP {@code tools/list}
  * result specification.</p>
  */
-public class McpToolsListHandler extends JsonRpcMethodHandler {
+public inherited sharing class McpToolsListHandler extends JsonRpcMethodHandler {
 
     private final List<McpToolDefinition> tools;
 

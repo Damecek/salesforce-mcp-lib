@@ -7,7 +7,7 @@
  * JSON-RPC responses with {@code isError: true} per the MCP specification --
  * only protocol-level failures produce JSON-RPC error responses.</p>
  */
-public class McpToolsCallHandler extends JsonRpcMethodHandler {
+public inherited sharing class McpToolsCallHandler extends JsonRpcMethodHandler {
 
     private final Map<String, McpToolDefinition> toolsByName;
 

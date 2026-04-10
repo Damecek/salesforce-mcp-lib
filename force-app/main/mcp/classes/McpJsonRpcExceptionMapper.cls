@@ -10,7 +10,7 @@
  *   <li>Any other {@code Exception} &rarr; {@code -32603 Internal error}</li>
  * </ul>
  */
-public class McpJsonRpcExceptionMapper implements JsonRpcExceptionMapper {
+public inherited sharing class McpJsonRpcExceptionMapper implements JsonRpcExceptionMapper {
 
     /**
      * Maps the given exception to the appropriate JSON-RPC error.

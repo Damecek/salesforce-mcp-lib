@@ -7,7 +7,7 @@
  * no processing and returns a placeholder response that is never sent on
  * the wire.</p>
  */
-public class McpNotificationHandler extends JsonRpcMethodHandler {
+public inherited sharing class McpNotificationHandler extends JsonRpcMethodHandler {
 
     /**
      * Constructs a notification handler for the given method name.

@@ -6,7 +6,7 @@
  * response format conforms to the MCP {@code resources/list} result
  * specification.</p>
  */
-public class McpResourcesListHandler extends JsonRpcMethodHandler {
+public inherited sharing class McpResourcesListHandler extends JsonRpcMethodHandler {
 
     private final List<McpResourceDefinition> resources;
 

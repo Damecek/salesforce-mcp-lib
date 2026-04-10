@@ -6,7 +6,7 @@
  * arguments, and returning the content. Unknown URI templates produce a
  * JSON-RPC error response with code {@code -32602} (invalid params).</p>
  */
-public class McpResourcesTemplatesCallHandler extends JsonRpcMethodHandler {
+public inherited sharing class McpResourcesTemplatesCallHandler extends JsonRpcMethodHandler {
 
     private final Map<String, McpResourceTemplateDefinition> templatesByUri;
 

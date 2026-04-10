@@ -6,7 +6,7 @@
  * built dynamically from the tool, resource, resource template, and prompt
  * definitions registered with the server.</p>
  */
-public class McpInitializeHandler extends JsonRpcMethodHandler {
+public inherited sharing class McpInitializeHandler extends JsonRpcMethodHandler {
 
     private static final String LATEST_PROTOCOL_VERSION = '2025-11-25';
     private static final Set<String> SUPPORTED_PROTOCOL_VERSIONS = new Set<String>{
