@@ -193,7 +193,14 @@ scripts/               # Build, deploy, and release scripts
 
 ## Contributing
 
-Contributions are welcome. Run the existing test suite before submitting:
+Contributions are welcome. Validate Apex changes in a fresh scratch org before submitting:
+
+```bash
+./scripts/org-create.sh your-alias
+./scripts/org-test.sh
+```
+
+`org-create.sh` provisions a new scratch org, sets it as default, and deploys `force-app`. `org-test.sh` then runs the Apex test suite in that org. Run the existing TypeScript test suite as well before submitting:
 
 ```bash
 cd packages/salesforce-mcp-lib && npm test && npm run lint
