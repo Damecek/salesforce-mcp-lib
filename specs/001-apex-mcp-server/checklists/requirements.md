@@ -33,4 +33,4 @@
 
 - All checklist items pass. Specification is ready for `/speckit.clarify` or `/speckit.plan`.
 - The spec references "TypeScript proxy" and "Apex" in functional requirements. These are essential to the feature definition (the product IS an Apex framework with a TS proxy), not implementation leakage. The spec describes WHAT the system does, not HOW it is built internally.
-- No [NEEDS CLARIFICATION] markers were needed. Reasonable defaults were applied for: authentication (Salesforce OAuth/Connected Apps), transport (Streamable HTTP per MCP spec), packaging (2GP managed), and testing (MCP Inspector + Apex unit tests). All defaults are documented in the Assumptions section.
+- No [NEEDS CLARIFICATION] markers were needed. Reasonable defaults were applied for: authentication (Salesforce OAuth/External Client Apps), transport (Streamable HTTP per MCP spec), packaging (2GP managed), and testing (MCP Inspector + Apex unit tests). All defaults are documented in the Assumptions section.

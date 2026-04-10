@@ -395,8 +395,8 @@ Maps MCP-specific exceptions to JSON-RPC error responses.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | instanceUrl | string | Yes | Salesforce org My Domain URL |
-| clientId | string | Yes | Connected App consumer key |
-| clientSecret | string | Yes | Connected App consumer secret |
+| clientId | string | Yes | External Client App consumer key |
+| clientSecret | string | Yes | External Client App consumer secret |
 | endpoint | string | Yes | Subscriber's `@RestResource` URL path |
 | logLevel | string | No | Logging verbosity (debug, info, warn, error) |
 

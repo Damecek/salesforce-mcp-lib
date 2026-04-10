@@ -64,9 +64,9 @@ This proxy connects to an Apex MCP endpoint running in your Salesforce org. You 
 
 1. **Salesforce MCP Library** installed in your org ([install instructions](https://github.com/Damecek/salesforce-mcp-lib#1-install-the-apex-framework))
 2. At least one `@RestResource` endpoint with registered MCP capabilities
-3. A **Connected App** with OAuth 2.0 Client Credentials flow enabled
+3. An **External Client App** with OAuth 2.0 Client Credentials flow enabled
 
-See the [main README](https://github.com/Damecek/salesforce-mcp-lib) for a full quick-start guide.
+See the [main README](https://github.com/Damecek/salesforce-mcp-lib) for the ECA-first quick-start guide.
 
 ## How it works
 

@@ -18,8 +18,8 @@ Starts MCP Inspector connected to the e2e-http-endpoint example.
 
 Options (override env vars SF_INSTANCE_URL, SF_CLIENT_ID, SF_CLIENT_SECRET):
   --instance-url   URL    Salesforce instance URL
-  --client-id      KEY    Connected-app consumer key
-  --client-secret  SEC    Connected-app consumer secret
+  --client-id      KEY    External-client-app consumer key
+  --client-secret  SEC    External-client-app consumer secret
   --endpoint       PATH   Apex REST endpoint  [default: /services/apexrest/mcp/e2e]
   -h, --help              Show this help
 

@@ -84,7 +84,7 @@ async function main(): Promise<void> {
     const safeMsg = redactSecrets(rawMsg, secrets);
     logger.error(`Authentication failed: ${safeMsg}`);
     logger.error(
-      'Startup aborted — check instance URL, client credentials, and Connected App configuration'
+      'Startup aborted — check instance URL, client credentials, and External Client App configuration'
     );
     process.exit(1);
   }

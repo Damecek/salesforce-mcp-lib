@@ -11,7 +11,7 @@ This guide walks a Salesforce developer through installing the package, implemen
 - A Salesforce org with API access enabled (Enterprise, Unlimited, Performance, or Developer edition)
 - Salesforce CLI (`sf`) installed
 - Node.js >= 20 installed
-- A Connected App configured for OAuth 2.0 Client Credentials flow (see [Connected App Setup](#connected-app-setup))
+- A External Client App configured for OAuth 2.0 Client Credentials flow (see [External Client App Setup](#connected-app-setup))
 
 ---
 
@@ -120,11 +120,11 @@ sf project deploy start \
 
 ---
 
-## Step 3: Configure the Connected App (5 minutes)
+## Step 3: Configure the External Client App (5 minutes)
 
-### Connected App Setup
+### External Client App Setup
 
-1. In Salesforce Setup, navigate to **App Manager** > **New Connected App**
+1. In Salesforce Setup, navigate to **App Manager** > **New External Client App**
 2. Enable **OAuth Settings**:
    - Callback URL: `https://localhost/callback` (not used, but required)
    - Selected OAuth Scopes: **Access and manage your data (api)**
@@ -333,7 +333,7 @@ npx salesforce-mcp-lib --endpoint /services/apexrest/mcp/support ...
 
 | Symptom | Likely Cause | Fix |
 |---|---|---|
-| `401 Unauthorized` at startup | Invalid client credentials or Connected App not yet propagated | Verify consumer key/secret; wait 10 min for new Connected Apps |
+| `401 Unauthorized` at startup | Invalid client credentials or External Client App not yet propagated | Verify consumer key/secret; wait 10 min for new External Client Apps |
 | Tool not showing in Inspector | Tool not registered in endpoint class | Verify `registerTool()` is called before `handleRequest()` |
 | `APEX_ERROR` in proxy logs | Unhandled Apex exception or governor limit exceeded | Check Salesforce debug logs for the failing transaction |
 | Proxy exits immediately | Missing required CLI arguments | Check that all `--instance-url`, `--client-id`, `--client-secret`, `--endpoint` are provided |

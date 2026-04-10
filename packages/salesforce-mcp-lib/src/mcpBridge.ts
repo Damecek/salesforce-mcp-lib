@@ -98,7 +98,7 @@ export function createBridge(config: BridgeConfig, logger?: BridgeLogger): Bridg
         return jsonRpcError(
           requestId,
           -32603,
-          'Session expired and re-authentication failed — please verify Connected App credentials'
+          'Session expired and re-authentication failed — please verify External Client App credentials'
         );
       }
     }

@@ -133,7 +133,7 @@
 
 **Re-authentication strategy**: On 401 from Salesforce, repeat the client credentials exchange, get a fresh token, and retry the failed request once.
 
-**Connected App requirements**:
+**External Client App requirements**:
 - Enable OAuth Settings with `api` scope (minimum for REST API access)
 - Enable Client Credentials Flow (`isClientCredentialEnabled: true`, API 56.0+)
 - Configure a "Run As" user — token inherits this user's permissions
