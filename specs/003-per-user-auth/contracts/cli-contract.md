@@ -110,7 +110,7 @@ salesforce-mcp-lib login \
 #   Please open this URL in a browser to authorize:
 #   https://myorg.my.salesforce.com/services/oauth2/authorize?response_type=code&client_id=3MVG9...
 #
-#   After authorizing, paste the full callback URL or authorization code:
+#   After authorizing, paste the full callback URL:
 # User pastes → tokens stored
 ```
 

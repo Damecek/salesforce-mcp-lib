@@ -218,13 +218,13 @@ export async function performLogin(
         `\nPlease open this URL in a browser to authorize:\n${authorizeUrl}\n\n`
       );
       process.stderr.write(
-        'After authorizing, paste the full callback URL or authorization code (timeout: 120s):\n'
+        'After authorizing, paste the full callback URL (timeout: 120s):\n'
       );
 
       // Race between callback server and stdin paste.
       const codeResult = await Promise.race([
         server.waitForCode(),
-        readCodeFromStdin(server.callbackUrl),
+        readCodeFromStdin(server.callbackUrl, state),
       ]);
 
       logger.info(
@@ -280,10 +280,11 @@ export async function performLogin(
 
 /**
  * Read authorization code from stdin (for headless mode).
- * User can paste either the full callback URL or just the code.
+ * User must paste the full callback URL so state can be validated.
  */
 function readCodeFromStdin(
-  _callbackUrl: string
+  callbackUrl: string,
+  expectedState: string
 ): Promise<{ code: string; state: string }> {
   return new Promise((resolve, reject) => {
     const rl = createInterface({
@@ -295,31 +296,81 @@ function readCodeFromStdin(
       rl.close();
       const trimmed = line.trim();
       if (!trimmed) {
-        reject(new Error('Empty input received'));
+        reject(
+          new Error(
+            'Empty input received. Paste the full callback URL shown after authorization.'
+          )
+        );
         return;
       }
 
-      // Try to parse as a URL first.
       try {
-        const url = new URL(trimmed);
-        const code = url.searchParams.get('code');
-        const state = url.searchParams.get('state') ?? '';
-        if (code) {
-          resolve({ code, state });
-          return;
-        }
-      } catch {
-        // Not a URL — treat as raw code.
+        resolve(parseHeadlessCallbackInput(trimmed, callbackUrl, expectedState));
+      } catch (err) {
+        reject(err);
       }
-
-      // Treat the entire input as the authorization code.
-      resolve({ code: trimmed, state: '' });
     });
 
     rl.once('close', () => {
-      reject(new Error('stdin closed without receiving authorization code'));
+      reject(
+        new Error('stdin closed without receiving the full callback URL')
+      );
     });
   });
+}
+
+export function parseHeadlessCallbackInput(
+  input: string,
+  callbackUrl: string,
+  expectedState: string
+): { code: string; state: string } {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    throw new Error(
+      'Empty input received. Paste the full callback URL shown after authorization.'
+    );
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(trimmed);
+  } catch {
+    throw new Error(
+      'Invalid input received. Paste the full callback URL from the browser address bar.'
+    );
+  }
+
+  const expectedUrl = new URL(callbackUrl);
+  if (
+    parsedUrl.origin !== expectedUrl.origin ||
+    parsedUrl.pathname !== expectedUrl.pathname
+  ) {
+    throw new Error(
+      `Invalid callback URL. Paste the full callback URL for ${callbackUrl}.`
+    );
+  }
+
+  const code = parsedUrl.searchParams.get('code');
+  if (!code) {
+    throw new Error(
+      'Missing authorization code in callback URL. Paste the full callback URL from the browser address bar.'
+    );
+  }
+
+  const state = parsedUrl.searchParams.get('state');
+  if (!state) {
+    throw new Error(
+      'Missing state in callback URL. Paste the full callback URL from the browser address bar.'
+    );
+  }
+
+  if (state !== expectedState) {
+    throw new Error(
+      'OAuth state mismatch. Paste the full callback URL from the current login attempt.'
+    );
+  }
+
+  return { code, state };
 }
 
 /**

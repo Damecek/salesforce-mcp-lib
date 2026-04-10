@@ -46,6 +46,15 @@ export class ConsentDeniedError extends SalesforceAuthError {
   }
 }
 
+/** Per-user auth is configured but the user must complete the login command first. */
+export class LoginRequiredError extends SalesforceAuthError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LoginRequiredError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 /** Access token expired or was revoked. Refresh may resolve. */
 export class SessionExpiredError extends SalesforceAuthError {
   constructor(message: string) {

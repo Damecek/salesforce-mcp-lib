@@ -13,7 +13,7 @@
 - Q: Can a user explicitly log out or switch to a different Salesforce user? → A: No explicit logout. Sessions persist until expired or revoked server-side. To switch users, the user manually deletes stored credentials.
 - Q: Should some operations fall back to a service account in per-user mode? → A: No. All operations run under the authenticated user's identity — no service account fallback. Salesforce enforces permissions natively.
 - Q: Should admins use a single Connected App for both flows or separate ones? → A: Not prescribed — admin's choice. The system must work regardless of whether the same or separate Connected Apps are used for client credentials vs. per-user login.
-- Q: How should headless login work when no browser is available locally? → A: Manual URL — system prints an authorization URL to the terminal; user opens it on any device, authorizes, and the system completes login (or user pastes a return code back).
+- Q: How should headless login work when no browser is available locally? → A: Manual URL — system prints an authorization URL to the terminal; user opens it on any device, authorizes, and then pastes the full callback URL back into the terminal so the state parameter can be validated.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -89,7 +89,7 @@ As a user who encounters a login problem, I want clear error messages that help 
 - What happens when a user's Salesforce account is deactivated mid-session? The system should detect the access revocation on the next request and notify the user that their session is no longer valid.
 - What happens when the Connected App's OAuth settings are changed while users have active sessions? Existing sessions should continue working until their tokens expire naturally; new logins should use the updated settings.
 - What happens if the user denies consent during the login process? The system should display a clear message explaining that consent is required for the application to function and offer to retry.
-- What happens if the MCP client runs in a headless environment where no browser is available? The system prints an authorization URL to the terminal; the user opens it on any device, authorizes, and then the system completes login automatically or accepts a pasted return code.
+- What happens if the MCP client runs in a headless environment where no browser is available? The system prints an authorization URL to the terminal; the user opens it on any device, authorizes, and then the system completes login automatically or accepts the pasted full callback URL.
 
 ## Requirements *(mandatory)*
 
@@ -105,7 +105,7 @@ As a user who encounters a login problem, I want clear error messages that help 
 - **FR-008**: System MUST provide distinct, actionable error messages for different authentication failure scenarios (invalid credentials, insufficient access, connectivity issues, consent denied)
 - **FR-009**: System MUST operate under the authenticated user's Salesforce permissions for all operations without exception - profile, permission sets, and sharing rules apply to every request; no service account fallback exists in per-user mode
 - **FR-010**: System MUST support login for users across different Salesforce org types (production, sandbox, custom domain) by deriving the appropriate login endpoint from the configured instance URL
-- **FR-011**: System MUST support a fallback login mechanism for headless/no-browser environments by printing an authorization URL to the terminal that the user can open on any device; after authorizing, the system completes login automatically or the user pastes a return code back into the terminal
+- **FR-011**: System MUST support a fallback login mechanism for headless/no-browser environments by printing an authorization URL to the terminal that the user can open on any device; after authorizing, the system completes login automatically or the user pastes the full callback URL back into the terminal
 
 ### Key Entities
 

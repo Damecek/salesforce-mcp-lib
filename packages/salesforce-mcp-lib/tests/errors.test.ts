@@ -1,6 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { SalesforceAuthError, RemoteMcpError } from '../src/errors.js';
+import {
+  LoginRequiredError,
+  RemoteMcpError,
+  SalesforceAuthError,
+} from '../src/errors.js';
 
 describe('SalesforceAuthError', () => {
   it('is an instance of Error (prototype chain restored)', () => {
@@ -53,5 +57,19 @@ describe('RemoteMcpError', () => {
     assert.equal(err.statusCode, 0);
     assert.equal(err.responseBody, '');
     assert.equal(err.message, 'unknown');
+  });
+});
+
+describe('LoginRequiredError', () => {
+  it('is an instance of SalesforceAuthError', () => {
+    const err = new LoginRequiredError('run login first');
+    assert.ok(err instanceof SalesforceAuthError);
+    assert.ok(err instanceof LoginRequiredError);
+  });
+
+  it('preserves the actionable message', () => {
+    const err = new LoginRequiredError('run login first');
+    assert.equal(err.message, 'run login first');
+    assert.equal(err.name, 'LoginRequiredError');
   });
 });

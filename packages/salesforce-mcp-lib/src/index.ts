@@ -26,6 +26,7 @@ import {
   InsufficientAccessError,
   ConnectivityError,
   ConsentDeniedError,
+  LoginRequiredError,
   SessionExpiredError,
 } from './errors.js';
 
@@ -179,7 +180,9 @@ async function runServer(): Promise<void> {
   logger.info(`  log-level    : ${config.logLevel ?? 'info'}`);
 
   // 3. Create auth strategy (may detect stored per-user tokens).
-  const strategy = createAuthStrategy(config, logger);
+  const strategy = createAuthStrategy(config, logger, {
+    allowInteractiveLogin: false,
+  });
   logger.info(`  auth-mode    : ${strategy.mode === 'client_credentials' ? 'client_credentials' : 'per-user (authorization code)'}`);
 
   // 4. Authenticate.
@@ -219,6 +222,10 @@ async function runServer(): Promise<void> {
     );
   } catch (err: unknown) {
     // T023: Specific error subclass handling.
+    if (err instanceof LoginRequiredError) {
+      logger.error(err.message);
+      process.exit(2);
+    }
     if (err instanceof SessionExpiredError) {
       logger.error(`Session expired: ${err.message}`);
       process.exit(2);

@@ -16,7 +16,7 @@ import { ClientCredentialsStrategy } from './oauth.js';
 import { performLogin, refreshAccessToken } from './perUserAuth.js';
 import { loadTokens, saveTokens, deleteTokens } from './tokenStore.js';
 import type { LoadTokensResult } from './tokenStore.js';
-import { SessionExpiredError } from './errors.js';
+import { LoginRequiredError, SessionExpiredError } from './errors.js';
 import type { BridgeConfig } from './types.js';
 
 /** Abstract authentication strategy. Both flows implement this. */
@@ -39,6 +39,17 @@ export function detectAuthMode(config: AuthConfig): AuthMode {
   return config.clientSecret ? 'client_credentials' : 'authorization_code';
 }
 
+export interface PerUserAuthStrategyOptions {
+  allowInteractiveLogin?: boolean;
+  loginHandler?: typeof performLogin;
+  preloadedTokens?: LoadTokensResult;
+}
+
+export interface CreateAuthStrategyOptions {
+  allowInteractiveLogin?: boolean;
+  loginHandler?: typeof performLogin;
+}
+
 // ---------------------------------------------------------------------------
 // PerUserAuthStrategy (T010 + T015)
 // ---------------------------------------------------------------------------
@@ -51,6 +62,8 @@ export class PerUserAuthStrategy implements AuthStrategy {
   readonly mode = 'authorization_code' as const;
   private readonly config: AuthConfig;
   private readonly logger: BridgeLogger;
+  private readonly allowInteractiveLogin: boolean;
+  private readonly loginHandler: typeof performLogin;
   private cachedToken: string | null = null;
   private cachedInstanceUrl: string | null = null;
   private cachedRefreshToken: string | null = null;
@@ -59,15 +72,17 @@ export class PerUserAuthStrategy implements AuthStrategy {
   constructor(
     config: AuthConfig,
     logger: BridgeLogger,
-    preloadedTokens?: LoadTokensResult
+    options: PerUserAuthStrategyOptions = {}
   ) {
     this.config = config;
     this.logger = logger;
+    this.allowInteractiveLogin = options.allowInteractiveLogin ?? true;
+    this.loginHandler = options.loginHandler ?? performLogin;
 
     // T015: Load stored tokens, using a pre-loaded result when provided
     // (avoids a redundant disk read when called from createAuthStrategy).
     const result =
-      preloadedTokens ?? loadTokens(config.instanceUrl, config.clientId);
+      options.preloadedTokens ?? loadTokens(config.instanceUrl, config.clientId);
     this.applyLoadResult(result);
   }
 
@@ -132,6 +147,11 @@ export class PerUserAuthStrategy implements AuthStrategy {
           );
           deleteTokens(this.config.instanceUrl, this.config.clientId);
           this.clearCache();
+          if (!this.allowInteractiveLogin) {
+            throw new LoginRequiredError(this.buildLoginRequiredMessage());
+          }
+        } else if (!this.allowInteractiveLogin) {
+          throw err;
         }
         // Other errors — try login.
         this.logger.warn(
@@ -142,8 +162,11 @@ export class PerUserAuthStrategy implements AuthStrategy {
 
     // No cached token and no refresh token — perform interactive login.
     // Opens browser for OAuth, waits for callback. Does not require stdin.
+    if (!this.allowInteractiveLogin) {
+      throw new LoginRequiredError(this.buildLoginRequiredMessage());
+    }
     this.logger.info('No stored credentials — starting browser login flow...');
-    const response = await performLogin(this.config, this.logger);
+    const response = await this.loginHandler(this.config, this.logger);
     this.updateCachedTokens(response);
     return response.access_token;
   }
@@ -171,14 +194,24 @@ export class PerUserAuthStrategy implements AuthStrategy {
           `Refresh failed during re-auth: ${err instanceof Error ? err.message : String(err)}`
         );
         // T025: Clear stored tokens on refresh failure (mid-session deactivation).
-        deleteTokens(this.config.instanceUrl, this.config.clientId);
-        this.clearCache();
+        if (err instanceof SessionExpiredError) {
+          deleteTokens(this.config.instanceUrl, this.config.clientId);
+          this.clearCache();
+          if (!this.allowInteractiveLogin) {
+            throw new SessionExpiredError(this.buildSessionExpiredMessage());
+          }
+        } else if (!this.allowInteractiveLogin) {
+          throw err;
+        }
       }
     }
 
     // Fall back to full login.
+    if (!this.allowInteractiveLogin) {
+      throw new SessionExpiredError(this.buildSessionExpiredMessage());
+    }
     this.logger.info('Performing full re-authentication via login flow...');
-    const response = await performLogin(this.config, this.logger);
+    const response = await this.loginHandler(this.config, this.logger);
     this.updateCachedTokens(response);
     return response;
   }
@@ -222,6 +255,27 @@ export class PerUserAuthStrategy implements AuthStrategy {
     this.cachedRefreshToken = null;
     this._tokensLoaded = false;
   }
+
+  private buildLoginRequiredMessage(): string {
+    return (
+      'No stored credentials found. Please log in first: ' +
+      this.buildLoginCommand()
+    );
+  }
+
+  private buildSessionExpiredMessage(): string {
+    return (
+      'Your session has expired and cannot be refreshed. Please log in again: ' +
+      this.buildLoginCommand()
+    );
+  }
+
+  private buildLoginCommand(): string {
+    return (
+      `salesforce-mcp-lib login --instance-url ${this.config.instanceUrl} ` +
+      `--client-id ${this.config.clientId}`
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -234,7 +288,7 @@ export class PerUserAuthStrategy implements AuthStrategy {
  * Detection priority:
  * 1. Stored per-user tokens exist → PerUserAuthStrategy (even if client_secret is in config)
  * 2. client_secret present, no stored tokens → ClientCredentialsStrategy
- * 3. No client_secret, no stored tokens → PerUserAuthStrategy (will auto-login via browser)
+ * 3. No client_secret, no stored tokens → PerUserAuthStrategy
  *
  * This allows a single Connected App to support both flows — the user can
  * provide client_secret for the initial token exchange while still using
@@ -242,7 +296,8 @@ export class PerUserAuthStrategy implements AuthStrategy {
  */
 export function createAuthStrategy(
   config: AuthConfig,
-  logger: BridgeLogger
+  logger: BridgeLogger,
+  options: CreateAuthStrategyOptions = {}
 ): AuthStrategy {
   // Load tokens once and forward the result to avoid a second disk read
   // inside the PerUserAuthStrategy constructor.
@@ -251,7 +306,11 @@ export function createAuthStrategy(
   if (stored.status === 'loaded') {
     // Valid stored per-user tokens → always use per-user auth strategy.
     logger.debug('Found stored per-user tokens — using per-user auth strategy');
-    return new PerUserAuthStrategy(config, logger, stored);
+    return new PerUserAuthStrategy(config, logger, {
+      allowInteractiveLogin: options.allowInteractiveLogin,
+      loginHandler: options.loginHandler,
+      preloadedTokens: stored,
+    });
   }
 
   const mode = detectAuthMode(config);
@@ -267,7 +326,11 @@ export function createAuthStrategy(
     return new ClientCredentialsStrategy(bridgeConfig, logger);
   }
 
-  // No stored tokens, no client_secret → per-user auth (will auto-login).
+  // No stored tokens, no client_secret → per-user auth.
   // Pass the already-loaded result so the constructor doesn't read again.
-  return new PerUserAuthStrategy(config, logger, stored);
+  return new PerUserAuthStrategy(config, logger, {
+    allowInteractiveLogin: options.allowInteractiveLogin,
+    loginHandler: options.loginHandler,
+    preloadedTokens: stored,
+  });
 }
