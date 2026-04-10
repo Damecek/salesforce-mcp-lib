@@ -74,7 +74,7 @@ Write the full article following the plan's section structure. The article MUST:
 
 Generate a hashtag block for the article:
 
-- Always include: `#Salesforce #MCP #OpenSource`
+- Always include: `#Salesforce #MCP #OpenSource #SalesforceMCPLib`
 - Add 2–3 topic-specific hashtags
 - Total: 5–6 hashtags
 

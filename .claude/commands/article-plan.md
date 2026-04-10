@@ -76,7 +76,7 @@ Generate the following metadata for the article:
 - **Target word count**: Total (1500–2500)
 - **Target audience**: Primary and secondary audience
 - **SEO keywords**: 5–8 keywords for discoverability
-- **Hashtags**: 5–6 LinkedIn hashtags (3 fixed: `#Salesforce #MCP #OpenSource` + 2–3 topic-specific)
+- **Hashtags**: 5–7 LinkedIn hashtags (4 fixed: `#Salesforce #MCP #OpenSource #SalesforceMCPLib` + 2–3 topic-specific)
 - **Repo URL**: `https://github.com/damecek/salesforce-mcp-lib`
 
 ### Step 4: Validate

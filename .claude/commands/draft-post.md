@@ -77,7 +77,7 @@ Generate 3 distinct style variants for the post. Each variant MUST:
 
 Generate a hashtag block for this post:
 
-- Always include these 3 fixed hashtags: `#Salesforce #MCP #OpenSource`
+- Always include these 4 fixed hashtags: `#Salesforce #MCP #OpenSource #SalesforceMCPLib`
 - Add 2–3 topic-specific hashtags based on the post's arc position and content
 - Pick from this pool (or suggest new ones if the topic warrants it): `#Apex`, `#AIAgents`, `#SalesforceDeveloper`, `#EnterpriseAI`, `#APIDesign`, `#AIIntegration`, `#JSONRPC`, `#ZeroDependencies`, `#OAuth`, `#CyberSecurity`, `#DeveloperExperience`, `#LLM`
 - Total: **5–6 hashtags** per post (LinkedIn sweet spot)
