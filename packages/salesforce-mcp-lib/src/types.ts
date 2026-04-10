@@ -7,9 +7,9 @@
 export interface BridgeConfig {
   /** Salesforce instance URL, e.g. https://myorg.my.salesforce.com */
   instanceUrl: string;
-  /** Connected-app consumer key (client_id). */
+  /** External-client-app consumer key (client_id). */
   clientId: string;
-  /** Connected-app consumer secret (client_secret). */
+  /** External-client-app consumer secret (client_secret). */
   clientSecret: string;
   /** Apex REST endpoint path, e.g. /services/apexrest/mcp */
   endpoint: string;
@@ -31,7 +31,7 @@ export interface McpSession {
   sessionId: string;
   protocolVersion: string;
   serverCapabilities: Record<string, unknown>;
-  state: 'initializing' | 'operational' | 'closed';
+  state: "initializing" | "operational" | "closed";
 }
 
 /** A JSON-RPC 2.0 message (request, response, notification, or error). */

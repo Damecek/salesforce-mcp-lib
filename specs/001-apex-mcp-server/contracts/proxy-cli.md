@@ -21,8 +21,8 @@ npx salesforce-mcp-lib \
 | Parameter | Env Variable | Description |
 |---|---|---|
 | `--instance-url` | `SF_INSTANCE_URL` | Salesforce org My Domain URL |
-| `--client-id` | `SF_CLIENT_ID` | Connected App consumer key |
-| `--client-secret` | `SF_CLIENT_SECRET` | Connected App consumer secret |
+| `--client-id` | `SF_CLIENT_ID` | External Client App consumer key |
+| `--client-secret` | `SF_CLIENT_SECRET` | External Client App consumer secret |
 | `--endpoint` | `SF_ENDPOINT` | Subscriber's `@RestResource` URL path |
 
 ### Optional Parameters

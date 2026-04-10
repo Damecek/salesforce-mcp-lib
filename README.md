@@ -28,12 +28,16 @@ The Apex server is **stateless** — it rebuilds its handler chain on every requ
 
 | Layer | Enforced by |
 |-------|------------|
-| OAuth 2.0 scopes | Connected App configuration |
+| OAuth 2.0 scopes | External Client App configuration |
 | Profile permissions | Salesforce platform |
 | Permission Sets | Salesforce platform |
 | Sharing rules | Salesforce platform |
 
 ---
+
+## Why External Client Apps
+
+This library uses the OAuth 2.0 `client_credentials` flow and is runtime-agnostic about which Salesforce app container issued the credentials. The project documentation intentionally standardizes on **External Client Apps (ECA)** so setup guidance stays ahead of Salesforce's platform direction.
 
 ## Quick start
 
@@ -93,9 +97,9 @@ public class MinimalTool extends McpToolDefinition {
 }
 ```
 
-### 3. Configure a Connected App
+### 3. Configure an External Client App
 
-Create a Connected App with **OAuth 2.0 Client Credentials** flow enabled. Note the `client_id` and `client_secret`.
+Create an External Client App with **OAuth 2.0 Client Credentials** flow enabled. Note the `client_id` and `client_secret`.
 
 ### 4. Connect an AI agent
 
@@ -160,8 +164,8 @@ salesforce-mcp-lib [options]
 | Option | Env variable | Required | Description |
 |--------|-------------|----------|-------------|
 | `--instance-url` | `SF_INSTANCE_URL` | Yes | Salesforce org URL |
-| `--client-id` | `SF_CLIENT_ID` | Yes | Connected App client ID |
-| `--client-secret` | `SF_CLIENT_SECRET` | Yes | Connected App client secret |
+| `--client-id` | `SF_CLIENT_ID` | Yes | External Client App client ID |
+| `--client-secret` | `SF_CLIENT_SECRET` | Yes | External Client App client secret |
 | `--endpoint` | `SF_ENDPOINT` | Yes | Apex REST endpoint path |
 | `--log-level` | `SF_LOG_LEVEL` | No | `debug` / `info` / `warn` / `error` (default: `info`) |
 

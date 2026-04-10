@@ -92,7 +92,7 @@ A developer uses the MCP Inspector to interactively test and debug their MCP ser
 
 ### User Story 6 - Secure MCP Access with Authentication (Priority: P6)
 
-An administrator configures authentication so that only authorized AI agents can connect to the Salesforce MCP server. The system leverages Salesforce's built-in OAuth 2.0 / Connected App infrastructure for authentication, and the MCP authorization flow follows the specification's OAuth 2.1-based model. Only authenticated clients with valid access tokens can invoke tools or read resources.
+An administrator configures authentication so that only authorized AI agents can connect to the Salesforce MCP server. The system leverages Salesforce's built-in OAuth 2.0 / External Client App infrastructure for authentication, and the MCP authorization flow follows the specification's OAuth 2.1-based model. Only authenticated clients with valid access tokens can invoke tools or read resources.
 
 **Why this priority**: Security is critical for production use but the core framework must work first. Authentication can be layered on after the protocol and capabilities are functional.
 
@@ -155,7 +155,7 @@ An administrator configures authentication so that only authorized AI agents can
 - **FR-022**: The proxy MUST support stdio transport on its client-facing side so it can be launched by MCP clients as a subprocess.
 - **FR-023**: The proxy MUST relay JSON-RPC messages between the MCP client and the Salesforce Apex server with minimal latency overhead.
 - **FR-023a**: The proxy MUST detect non-JSON or HTTP error responses from the Salesforce endpoint (e.g., HTTP 500 from uncatchable `System.LimitException`) and translate them into MCP-compliant JSON-RPC error responses with a descriptive error message, rather than forwarding raw HTTP errors to the client.
-- **FR-023b**: The proxy MUST authenticate to the Salesforce org via the OAuth 2.0 Client Credentials flow at startup, using a pre-configured Salesforce Connected App. The proxy exchanges client credentials for an access token without interactive user involvement.
+- **FR-023b**: The proxy MUST authenticate to the Salesforce org via the OAuth 2.0 Client Credentials flow at startup, using a pre-configured Salesforce External Client App. The proxy exchanges client credentials for an access token without interactive user involvement.
 - **FR-023c**: The proxy MUST cache the obtained OAuth access token and automatically re-authenticate via client credentials when it expires.
 
 **Packaging**
@@ -177,7 +177,7 @@ An administrator configures authentication so that only authorized AI agents can
 - Progress reporting (`notifications/progress`) — Apex REST is synchronous request/response; no mechanism to stream intermediate notifications during a running transaction; deferred to v2
 
 **Authentication**
-- **FR-027**: System MUST support authentication via OAuth 2.0 access tokens, leveraging Salesforce Connected Apps as the authorization mechanism. In v1, a valid token grants access to all tools, resources, and prompts registered on the endpoint (connection-level authorization). Per-tool scoping is deferred to a future version.
+- **FR-027**: System MUST support authentication via OAuth 2.0 access tokens, leveraging Salesforce External Client Apps as the authorization mechanism. In v1, a valid token grants access to all tools, resources, and prompts registered on the endpoint (connection-level authorization). Per-tool scoping is deferred to a future version.
 - **FR-028**: System MUST reject unauthenticated requests with `401 Unauthorized` and appropriate challenge headers when authentication is required.
 
 **Observability**
@@ -214,12 +214,12 @@ An administrator configures authentication so that only authorized AI agents can
 
 ## Assumptions
 
-- Developers installing the package have working knowledge of Salesforce Apex development, including familiarity with deploying custom classes and managing connected apps.
+- Developers installing the package have working knowledge of Salesforce Apex development, including familiarity with deploying custom classes and managing External Client Apps.
 - The subscriber org has API access enabled (API calls are available and not permanently exhausted).
 - The TypeScript proxy runs in a Node.js environment on the same network or a network with reliable connectivity to the Salesforce org (standard internet latency is acceptable).
 - AI agents connecting via MCP comply with the MCP 2025-11-25 specification — the server does not need to support older protocol versions in v1.
 - The package is an unlocked package with no namespace. Classes are referenced directly by name (e.g., `McpServer`, not `mcp.McpServer`). Unlocked packages do not provide IP protection or enforce API versioning — this is acceptable for v1.
-- Salesforce's existing OAuth 2.0 Connected App infrastructure is sufficient for MCP authentication needs — no custom authorization server is required. The proxy uses the OAuth 2.0 Client Credentials flow to authenticate to Salesforce, requiring a pre-configured Connected App with client credentials (client ID and secret) in the subscriber org.
+- Salesforce's existing OAuth 2.0 External Client App infrastructure is sufficient for MCP authentication needs — no custom authorization server is required. The proxy uses the OAuth 2.0 Client Credentials flow to authenticate to Salesforce, requiring a pre-configured External Client App with client credentials (client ID and secret) in the subscriber org.
 - Governor limits are the responsibility of the tool/resource/prompt implementer (the subscriber developer), not the framework — the framework documents best practices but cannot override platform limits.
 - The proxy communicates with a subscriber-defined `@RestResource` Apex REST endpoint that acts as a JSON-RPC dispatcher. The proxy POSTs each JSON-RPC message as the HTTP body; the Apex endpoint deserializes, routes to the correct handler, and returns the JSON-RPC response. Subscribers may create multiple independent MCP endpoints with different capability registrations.
 - Binary content (images, audio) in MCP responses will be base64-encoded as strings, within Salesforce's Apex heap size limits.
@@ -236,7 +236,7 @@ An administrator configures authentication so that only authorized AI agents can
 - Q: How should the framework handle duplicate tool/resource/prompt name registration? → A: Reject duplicate — throw an Apex exception at registration time with a clear error message identifying the conflicting name/URI.
 - Q: Where should MCP session state be stored between requests? → A: Proxy-side only — the proxy tracks all session state (protocol version, capabilities, lifecycle); the Apex REST endpoint is fully stateless per request with no session awareness.
 - Q: How should the framework handle uncatchable Apex `System.LimitException` (governor limit violations)? → A: Framework catches all catchable exceptions and returns MCP error results; the proxy detects non-JSON or HTTP 500 responses from Salesforce and translates them into MCP-compliant error results with a descriptive message.
-- Q: How should the proxy authenticate to the Salesforce REST endpoint? → A: Client Credentials flow — the proxy authenticates using client ID and secret from a pre-configured Connected App, with no interactive user involvement.
+- Q: How should the proxy authenticate to the Salesforce REST endpoint? → A: Client Credentials flow — the proxy authenticates using client ID and secret from a pre-configured External Client App, with no interactive user involvement.
 - Q: What package type and namespace should be used? → A: Unlocked package (no namespace). Not a managed package — no namespace prefix on classes.
 - Q: How should the proxy handle network interruptions or HTTP failures between itself and Salesforce? → A: No retry — immediately return an MCP-compliant error to the client on any Salesforce HTTP failure. No retry logic in v1.
 - Q: Should the package use Custom Metadata Types or Custom Settings for configuration? → A: No — no Custom Metadata Types or Custom Settings. All configuration and framework behavior is resolved entirely in Apex code.

@@ -11,7 +11,7 @@ The MCP server framework delegates authentication and authorization entirely to 
 
 ### Flow
 1. Proxy authenticates via OAuth 2.0 client credentials to Salesforce
-2. Connected App issues access token scoped to the Run As user
+2. External Client App issues access token scoped to the Run As user
 3. Proxy includes Bearer token in all API requests
 4. Salesforce enforces profile/permission set permissions per request
 5. Token expiration triggers transparent re-authentication
@@ -20,13 +20,13 @@ The MCP server framework delegates authentication and authorization entirely to 
 - **No stored credentials in Salesforce**: Token management is proxy-side only
 - **Principle of least privilege**: Run As user permissions limit API access
 - **Session timeout**: Governed by org session settings (default ~2h)
-- **IP restrictions**: Configurable via Connected App policies
+- **IP restrictions**: Configurable via External Client App policies
 
 ## Authorization Model
 
 | Layer | Enforcement | Mechanism |
 |---|---|---|
-| API Access | Salesforce Platform | Connected App OAuth scopes |
+| API Access | Salesforce Platform | External Client App OAuth scopes |
 | Object/Field Access | Salesforce Platform | Profile + Permission Sets |
 | Record Access | Salesforce Platform | OWD + Sharing Rules |
 | Tool Authorization | Subscriber Code | Custom logic in validate/execute |
@@ -35,7 +35,7 @@ The MCP server framework delegates authentication and authorization entirely to 
 
 1. No per-tool authorization at the framework level — subscriber developers implement access checks in tool/resource/prompt code
 2. All tools share the same Run As user's permissions within a single endpoint
-3. Multiple permission levels require multiple @RestResource endpoints with different Connected Apps
+3. Multiple permission levels require multiple @RestResource endpoints with different External Client Apps
 
 ## Recommendation
 
