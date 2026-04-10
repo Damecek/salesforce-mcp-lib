@@ -15,6 +15,7 @@ import type { BridgeLogger } from './mcpBridge.js';
 import { ClientCredentialsStrategy } from './oauth.js';
 import { performLogin, refreshAccessToken } from './perUserAuth.js';
 import { loadTokens, saveTokens, deleteTokens } from './tokenStore.js';
+import type { LoadTokensResult } from './tokenStore.js';
 import { SessionExpiredError } from './errors.js';
 import type { BridgeConfig } from './types.js';
 
@@ -55,12 +56,19 @@ export class PerUserAuthStrategy implements AuthStrategy {
   private cachedRefreshToken: string | null = null;
   private _tokensLoaded = false;
 
-  constructor(config: AuthConfig, logger: BridgeLogger) {
+  constructor(
+    config: AuthConfig,
+    logger: BridgeLogger,
+    preloadedTokens?: LoadTokensResult
+  ) {
     this.config = config;
     this.logger = logger;
 
-    // T015: Attempt to load stored tokens on construction.
-    this.loadStoredTokens();
+    // T015: Load stored tokens, using a pre-loaded result when provided
+    // (avoids a redundant disk read when called from createAuthStrategy).
+    const result =
+      preloadedTokens ?? loadTokens(config.instanceUrl, config.clientId);
+    this.applyLoadResult(result);
   }
 
   /** Whether stored tokens were found during construction. */
@@ -68,23 +76,30 @@ export class PerUserAuthStrategy implements AuthStrategy {
     return this._tokensLoaded;
   }
 
-  private loadStoredTokens(): void {
-    const stored = loadTokens(this.config.instanceUrl, this.config.clientId);
-    if (stored && (stored as unknown as Record<string, unknown>)['corrupt'] === true) {
-      this.logger.warn(
-        'Stored token file is corrupt — ignoring. Run "salesforce-mcp-lib login" to re-authenticate.'
-      );
-      deleteTokens(this.config.instanceUrl, this.config.clientId);
-    } else if (stored) {
-      this.cachedToken = stored.accessToken;
-      this.cachedInstanceUrl = stored.instanceUrl;
-      this.cachedRefreshToken = stored.refreshToken;
-      this._tokensLoaded = true;
-      this.logger.info(
-        `Loaded stored tokens for ${this.config.instanceUrl}`
-      );
-    } else {
-      this.logger.info('No stored credentials found');
+  private applyLoadResult(result: LoadTokensResult): void {
+    switch (result.status) {
+      case 'loaded':
+        this.cachedToken = result.data.accessToken;
+        this.cachedInstanceUrl = result.data.instanceUrl;
+        this.cachedRefreshToken = result.data.refreshToken;
+        this._tokensLoaded = true;
+        this.logger.info(`Loaded stored tokens for ${this.config.instanceUrl}`);
+        break;
+      case 'corrupt':
+        this.logger.warn(
+          `Stored token file is corrupt (${result.reason}) — ignoring. ` +
+            `Run "salesforce-mcp-lib login" to re-authenticate.`
+        );
+        deleteTokens(this.config.instanceUrl, this.config.clientId);
+        break;
+      case 'error':
+        this.logger.warn(
+          `Could not read stored tokens: ${result.error.message}`
+        );
+        break;
+      case 'missing':
+        this.logger.info('No stored credentials found');
+        break;
     }
   }
 
@@ -229,14 +244,14 @@ export function createAuthStrategy(
   config: AuthConfig,
   logger: BridgeLogger
 ): AuthStrategy {
-  // Check for stored per-user tokens first — if they exist, always use per-user mode.
-  const storedTokens = loadTokens(config.instanceUrl, config.clientId);
-  if (
-    storedTokens &&
-    (storedTokens as unknown as Record<string, unknown>)['corrupt'] !== true
-  ) {
+  // Load tokens once and forward the result to avoid a second disk read
+  // inside the PerUserAuthStrategy constructor.
+  const stored = loadTokens(config.instanceUrl, config.clientId);
+
+  if (stored.status === 'loaded') {
+    // Valid stored per-user tokens → always use per-user auth strategy.
     logger.debug('Found stored per-user tokens — using per-user auth strategy');
-    return new PerUserAuthStrategy(config, logger);
+    return new PerUserAuthStrategy(config, logger, stored);
   }
 
   const mode = detectAuthMode(config);
@@ -251,5 +266,8 @@ export function createAuthStrategy(
     };
     return new ClientCredentialsStrategy(bridgeConfig, logger);
   }
-  return new PerUserAuthStrategy(config, logger);
+
+  // No stored tokens, no client_secret → per-user auth (will auto-login).
+  // Pass the already-loaded result so the constructor doesn't read again.
+  return new PerUserAuthStrategy(config, logger, stored);
 }
