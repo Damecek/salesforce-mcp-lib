@@ -1,4 +1,7 @@
-public class ExampleSummarizePrompt extends McpPromptDefinition {
+/**
+ * Example prompt for summarizing a Salesforce record.
+ */
+public inherited sharing class ExampleSummarizePrompt extends McpPromptDefinition {
     public ExampleSummarizePrompt() {
         this.name = 'summarize_record';
         this.description = 'Generate a prompt to summarize a Salesforce record';
@@ -7,7 +10,6 @@ public class ExampleSummarizePrompt extends McpPromptDefinition {
             new McpPromptArgumentDefinition('recordId', 'The record ID to summarize', true)
         };
     }
-
     public override McpPromptResult get(Map<String, String> arguments) {
         String objName = arguments.get('objectName');
         String recordId = arguments.get('recordId');

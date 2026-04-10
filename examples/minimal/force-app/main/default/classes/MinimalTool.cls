@@ -1,7 +1,7 @@
 /**
  * Minimal MCP tool that echoes the provided message.
  */
-public class MinimalTool extends McpToolDefinition {
+public inherited sharing class MinimalTool extends McpToolDefinition {
     public MinimalTool() {
         this.name = 'echo';
         this.description = 'Echoes the provided message back to the caller';

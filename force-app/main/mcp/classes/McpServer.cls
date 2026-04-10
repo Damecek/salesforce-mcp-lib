@@ -16,7 +16,7 @@
  * server.handleRequest(RestContext.request, RestContext.response);
  * </pre>
  */
-public class McpServer {
+public inherited sharing class McpServer {
 
     private final List<McpToolDefinition> tools;
     private final Set<String> toolNames;

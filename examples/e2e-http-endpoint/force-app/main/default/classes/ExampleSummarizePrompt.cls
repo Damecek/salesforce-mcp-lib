@@ -1,7 +1,7 @@
 /**
  * Example prompt for summarizing a Salesforce record.
  */
-public class ExampleSummarizePrompt extends McpPromptDefinition {
+public inherited sharing class ExampleSummarizePrompt extends McpPromptDefinition {
     public ExampleSummarizePrompt() {
         this.name = 'summarize_record';
         this.description = 'Generate a prompt to summarize a Salesforce record';

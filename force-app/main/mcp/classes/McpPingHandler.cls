@@ -4,7 +4,7 @@
  * <p>Returns an empty result object, confirming that the server is
  * alive and responsive. No parameters are expected or consumed.</p>
  */
-public class McpPingHandler extends JsonRpcMethodHandler {
+public inherited sharing class McpPingHandler extends JsonRpcMethodHandler {
 
     /**
      * Constructs the ping handler.

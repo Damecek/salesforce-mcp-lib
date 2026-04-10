@@ -2,7 +2,7 @@
  * Handler for the prompts/list JSON-RPC method.
  * Returns all registered MCP prompt definitions with their metadata.
  */
-public class McpPromptsListHandler extends JsonRpcMethodHandler {
+public inherited sharing class McpPromptsListHandler extends JsonRpcMethodHandler {
     private final List<McpPromptDefinition> prompts;
 
     public McpPromptsListHandler(List<McpPromptDefinition> prompts) {

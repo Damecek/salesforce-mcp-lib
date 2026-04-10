@@ -2,7 +2,7 @@
  * Full MCP endpoint demonstrating tools, resources, and prompts.
  */
 @RestResource(urlMapping='/mcp/e2e')
-global class E2eHttpEndpoint {
+global inherited sharing class E2eHttpEndpoint {
     @HttpPost
     global static void handlePost() {
         McpServer server = new McpServer();
