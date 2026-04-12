@@ -59,6 +59,18 @@ describe('deriveStorageKey', () => {
     assert.equal(a, b);
   });
 
+  it('treats a trailing slash as the same org URL', () => {
+    const a = deriveStorageKey('https://org.my.salesforce.com', CLIENT_ID);
+    const b = deriveStorageKey('https://org.my.salesforce.com/', CLIENT_ID);
+    assert.equal(a, b);
+  });
+
+  it('treats an explicit default https port as the same org URL', () => {
+    const a = deriveStorageKey('https://org.my.salesforce.com', CLIENT_ID);
+    const b = deriveStorageKey('https://org.my.salesforce.com:443', CLIENT_ID);
+    assert.equal(a, b);
+  });
+
   it('differs when instanceUrl differs', () => {
     const a = deriveStorageKey('https://org-a.my.salesforce.com', CLIENT_ID);
     const b = deriveStorageKey('https://org-b.my.salesforce.com', CLIENT_ID);
@@ -204,6 +216,32 @@ describe('saveTokens + loadTokens round-trip', () => {
     if (r1.status !== 'loaded' || r2.status !== 'loaded') return;
     assert.equal(r1.data.accessToken, 'acc1');
     assert.equal(r2.data.accessToken, 'acc2');
+  });
+
+  it('loads tokens saved with a trailing slash via the canonical URL form', () => {
+    const savedUrl = 'https://org.my.salesforce.com/';
+    const loadedUrl = 'https://org.my.salesforce.com';
+    const data = makeTokenData({ instanceUrl: savedUrl });
+
+    saveTokens(savedUrl, CLIENT_ID, data);
+
+    const result = loadTokens(loadedUrl, CLIENT_ID);
+    assert.equal(result.status, 'loaded');
+    if (result.status !== 'loaded') return;
+    assert.deepEqual(result.data, data);
+  });
+
+  it('loads tokens saved with an explicit default port via the canonical URL form', () => {
+    const savedUrl = 'https://org.my.salesforce.com:443';
+    const loadedUrl = 'https://org.my.salesforce.com/';
+    const data = makeTokenData({ instanceUrl: savedUrl });
+
+    saveTokens(savedUrl, CLIENT_ID, data);
+
+    const result = loadTokens(loadedUrl, CLIENT_ID);
+    assert.equal(result.status, 'loaded');
+    if (result.status !== 'loaded') return;
+    assert.deepEqual(result.data, data);
   });
 });
 

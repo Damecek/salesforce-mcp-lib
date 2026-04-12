@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import { URL } from 'node:url';
 import type { PerUserTokenData } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -73,16 +74,21 @@ export function getKeyFilePath(): string {
 
 /**
  * Derive a storage key (filename) from instance URL and client ID.
- * Uses SHA-256 hex digest of (instanceUrl + '|' + clientId) to support
+ * Uses SHA-256 hex digest of (canonicalInstanceUrl + '|' + clientId) to support
  * multiple orgs without exposing org details in filenames.
  */
+function canonicalizeInstanceUrl(instanceUrl: string): string {
+  return new URL(instanceUrl).origin;
+}
+
 export function deriveStorageKey(
   instanceUrl: string,
   clientId: string
 ): string {
+  const canonicalInstanceUrl = canonicalizeInstanceUrl(instanceUrl);
   return crypto
     .createHash('sha256')
-    .update(`${instanceUrl}|${clientId}`)
+    .update(`${canonicalInstanceUrl}|${clientId}`)
     .digest('hex');
 }
 
