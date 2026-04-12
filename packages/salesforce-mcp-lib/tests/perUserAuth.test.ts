@@ -2,9 +2,11 @@ import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { PassThrough } from 'node:stream';
 
 import {
   parseHeadlessCallbackInput,
+  readCodeFromStdin,
   refreshAccessToken,
 } from '../src/perUserAuth.js';
 import {
@@ -90,6 +92,27 @@ describe('parseHeadlessCallbackInput', () => {
         ),
       /Invalid callback URL/
     );
+  });
+});
+
+describe('readCodeFromStdin', () => {
+  it('resolves valid callback input even though readline emits close', async () => {
+    const input = new PassThrough();
+    const resultPromise = readCodeFromStdin(
+      CALLBACK_URL,
+      EXPECTED_STATE,
+      input,
+    );
+
+    input.end(
+      'http://localhost:13338/oauth/callback?code=auth-code-123&state=expected-state-123\n',
+    );
+
+    const result = await resultPromise;
+    assert.deepEqual(result, {
+      code: 'auth-code-123',
+      state: EXPECTED_STATE,
+    });
   });
 });
 

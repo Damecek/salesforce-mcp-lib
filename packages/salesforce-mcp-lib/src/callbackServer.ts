@@ -107,13 +107,13 @@ export function startCallbackServer(
           if (errorParam === 'access_denied') {
             rejectCode!(
               new ConsentDeniedError(
-                `Authorization was denied. The application requires your consent to access Salesforce. (${decodeURIComponent(errorDesc)})`
+                `Authorization was denied. The application requires your consent to access Salesforce. (${errorDesc})`
               )
             );
           } else {
             rejectCode!(
               new Error(
-                `OAuth callback error: ${errorParam} — ${decodeURIComponent(errorDesc)}`
+                `OAuth callback error: ${errorParam} — ${errorDesc}`
               )
             );
           }

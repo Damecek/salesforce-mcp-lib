@@ -4,6 +4,7 @@ import http from 'node:http';
 import net from 'node:net';
 
 import { startCallbackServer } from '../src/callbackServer.js';
+import { ConsentDeniedError } from '../src/errors.js';
 
 const activeServers: Array<{ close(): void }> = [];
 
@@ -88,6 +89,56 @@ describe('startCallbackServer', () => {
 
     assert.equal(response.statusCode, 400);
     assert.match(response.body, /Invalid state parameter/);
+    await rejected;
+  });
+
+  it('preserves literal percent characters in callback error descriptions', async () => {
+    const server = registerServer(
+      await startCallbackServer({
+        port: 0,
+        expectedState: 'state-789',
+        timeout: 5000,
+      }),
+    );
+
+    const waitPromise = server.waitForCode();
+    const rejected = assert.rejects(
+      waitPromise,
+      /OAuth callback error: server_error — contains%/,
+    );
+    const response = await httpGet(
+      `${server.callbackUrl}?error=server_error&error_description=contains%25`,
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /Login Failed/i);
+    await rejected;
+  });
+
+  it('rejects access_denied as ConsentDeniedError without double-decoding', async () => {
+    const server = registerServer(
+      await startCallbackServer({
+        port: 0,
+        expectedState: 'state-999',
+        timeout: 5000,
+      }),
+    );
+
+    const waitPromise = server.waitForCode();
+    const rejected = assert.rejects(waitPromise, (err: unknown) => {
+      assert.ok(err instanceof ConsentDeniedError);
+      assert.match(
+        err.message,
+        /Authorization was denied.*consent% required/,
+      );
+      return true;
+    });
+    const response = await httpGet(
+      `${server.callbackUrl}?error=access_denied&error_description=consent%25%20required`,
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /Authorization denied/i);
     await rejected;
   });
 

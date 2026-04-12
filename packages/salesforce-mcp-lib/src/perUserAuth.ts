@@ -274,18 +274,23 @@ export async function performLogin(
 /**
  * Read authorization code from stdin (for headless mode).
  * User must paste the full callback URL so state can be validated.
+ *
+ * Exported for regression tests that exercise the readline settlement behavior.
  */
-function readCodeFromStdin(
+export function readCodeFromStdin(
   callbackUrl: string,
   expectedState: string,
+  input: NodeJS.ReadableStream = process.stdin,
 ): Promise<{ code: string; state: string }> {
   return new Promise((resolve, reject) => {
+    let settled = false;
     const rl = createInterface({
-      input: process.stdin,
+      input,
       terminal: false,
     });
 
     rl.once("line", (line) => {
+      settled = true;
       rl.close();
       const trimmed = line.trim();
       if (!trimmed) {
@@ -307,7 +312,10 @@ function readCodeFromStdin(
     });
 
     rl.once("close", () => {
-      reject(new Error("stdin closed without receiving the full callback URL"));
+      if (!settled) {
+        settled = true;
+        reject(new Error("stdin closed without receiving the full callback URL"));
+      }
     });
   });
 }
