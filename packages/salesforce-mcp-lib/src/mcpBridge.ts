@@ -2,14 +2,16 @@
  * MCP bridge — forwards JSON-RPC messages to a Salesforce Apex endpoint.
  * T037 — HTTP transport, 401 re-auth, and error translation.
  * T059 — hardened 401 re-auth: warn logging, sanitized client errors.
+ * T011 — refactored to accept AuthStrategy instead of direct oauth.ts calls.
+ * T022 — improved 401 handling with specific error subclasses.
  */
 
 import https from 'node:https';
 import http from 'node:http';
 import { URL } from 'node:url';
-import type { BridgeConfig, JsonRpcMessage } from './types.js';
-import { RemoteMcpError } from './errors.js';
-import { authenticate, getToken, getInstanceUrl } from './oauth.js';
+import type { AuthConfig, JsonRpcMessage } from './types.js';
+import { RemoteMcpError, SessionExpiredError, ConnectivityError, InvalidCredentialsError } from './errors.js';
+import type { AuthStrategy } from './authStrategy.js';
 
 /** Minimal logger interface accepted by the bridge. */
 export interface BridgeLogger {
@@ -35,13 +37,18 @@ export interface Bridge {
 /**
  * Create a bridge that forwards raw JSON-RPC strings to Salesforce.
  *
- * The bridge reads the current OAuth token from the oauth module and
+ * The bridge uses the provided AuthStrategy for token retrieval and
  * handles transparent 401 re-authentication (single retry).
  *
- * @param config Bridge configuration (instance URL, credentials, endpoint).
- * @param logger Optional logger for operational messages (warn-level re-auth events).
+ * @param strategy Auth strategy for obtaining/refreshing tokens.
+ * @param config Bridge configuration (instance URL, endpoint).
+ * @param logger Optional logger for operational messages.
  */
-export function createBridge(config: BridgeConfig, logger?: BridgeLogger): Bridge {
+export function createBridge(
+  strategy: AuthStrategy,
+  config: AuthConfig,
+  logger?: BridgeLogger
+): Bridge {
   const log = logger ?? nullLogger;
 
   async function forward(message: string): Promise<string> {
@@ -55,9 +62,12 @@ export function createBridge(config: BridgeConfig, logger?: BridgeLogger): Bridg
       // the remote endpoint deal with the parse error.
     }
 
-    const token = getToken();
-    if (token === null) {
-      log.error('Bridge forward called with no cached access token');
+    let token: string;
+    try {
+      token = await strategy.getAccessToken();
+    } catch (err: unknown) {
+      const detail = err instanceof Error ? err.message : String(err);
+      log.error(`Failed to get access token: ${detail}`);
       return jsonRpcError(
         requestId,
         -32603,
@@ -65,7 +75,7 @@ export function createBridge(config: BridgeConfig, logger?: BridgeLogger): Bridg
       );
     }
 
-    const instanceUrl = getInstanceUrl() ?? config.instanceUrl;
+    const instanceUrl = strategy.getInstanceUrl() ?? config.instanceUrl;
 
     // First attempt.
     const first = await postJsonRpc(instanceUrl, config.endpoint, token, message);
@@ -77,8 +87,14 @@ export function createBridge(config: BridgeConfig, logger?: BridgeLogger): Bridg
     // 401 — attempt single re-auth then retry.
     if (first.status === 401 && isInvalidSession(first.body)) {
       log.warn('Received INVALID_SESSION_ID (HTTP 401) — attempting re-authentication');
+
+      // T022: Invalidate cached token so strategy knows to refresh.
+      if ('invalidateToken' in strategy && typeof (strategy as Record<string, unknown>)['invalidateToken'] === 'function') {
+        (strategy as { invalidateToken(): void }).invalidateToken();
+      }
+
       try {
-        const newAuth = await authenticate(config);
+        const newAuth = await strategy.reauthenticate();
         log.warn('Re-authentication successful — retrying original request');
         const retry = await postJsonRpc(
           newAuth.instance_url,
@@ -95,6 +111,29 @@ export function createBridge(config: BridgeConfig, logger?: BridgeLogger): Bridg
       } catch (err: unknown) {
         const detail = err instanceof Error ? err.message : String(err);
         log.error(`Re-authentication failed: ${detail}`);
+
+        // T022: Differentiate error types in client-facing message.
+        if (err instanceof ConnectivityError) {
+          return jsonRpcError(
+            requestId,
+            -32603,
+            'Session expired and cannot reach Salesforce for re-authentication — check network connection'
+          );
+        }
+        if (err instanceof InvalidCredentialsError) {
+          return jsonRpcError(
+            requestId,
+            -32603,
+            'Session expired and credentials were rejected — run salesforce-mcp-lib login again'
+          );
+        }
+        if (err instanceof SessionExpiredError) {
+          return jsonRpcError(
+            requestId,
+            -32603,
+            'Session expired and refresh token is no longer valid — run salesforce-mcp-lib login again'
+          );
+        }
         return jsonRpcError(
           requestId,
           -32603,

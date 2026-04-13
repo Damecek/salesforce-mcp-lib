@@ -1,27 +1,43 @@
 # salesforce-mcp-lib Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-03-30
+Auto-generated from all feature plans. Last updated: 2026-04-08
 
 ## Active Technologies
+- TypeScript ES2022, Node.js >= 20.0.0 + Zero production dependencies. Node.js built-in modules only (`node:http`, `node:https`, `node:fs`, `node:path`, `node:crypto`, `node:os`, `node:child_process`, `node:readline`, `node:url`) (003-per-user-auth)
+- File-based token persistence in `~/.salesforce-mcp-lib/tokens/` (0600 permissions) (003-per-user-auth)
 
 - Apex (Salesforce API 65.0) + TypeScript (ES2022, Node.js >= 20) + Zero external dependencies. Apex uses platform-native APIs only. TypeScript uses Node.js built-in modules only (no production npm dependencies). JSON-RPC 2.0 core is implemented in-repo, not imported. (001-apex-mcp-server)
 
 ## Project Structure
 
 ```text
-src/
-tests/
+packages/salesforce-mcp-lib/src/
+  index.ts             # CLI entry point (login subcommand + MCP server)
+  config.ts            # CLI argument / env-var parser
+  types.ts             # Shared type definitions (AuthConfig, AuthMode, etc.)
+  errors.ts            # Error class hierarchy (SalesforceAuthError + subclasses)
+  oauth.ts             # Client credentials OAuth flow + ClientCredentialsStrategy
+  authStrategy.ts      # AuthStrategy interface + PerUserAuthStrategy + factory
+  perUserAuth.ts       # Authorization Code flow (PKCE, token exchange, browser)
+  callbackServer.ts    # Local HTTP server for OAuth redirect callback
+  tokenStore.ts        # File-based token persistence (~/.salesforce-mcp-lib/tokens/)
+  mcpBridge.ts         # JSON-RPC forwarding to Salesforce Apex endpoint
+  stdio.ts             # Stdio transport + levelled logger
+
+packages/salesforce-mcp-lib/tests/
+  *.test.ts            # Unit tests (node:test runner)
 ```
 
 ## Commands
 
-npm test && npm run lint
+cd packages/salesforce-mcp-lib && npm test && npm run lint
 
 ## Code Style
 
 Apex (Salesforce API 65.0) + TypeScript (ES2022, Node.js >= 20): Follow standard conventions
 
 ## Recent Changes
+- 003-per-user-auth: Implemented per-user OAuth 2.0 Authorization Code flow with PKCE. New modules: authStrategy.ts, perUserAuth.ts, callbackServer.ts, tokenStore.ts. `--client-secret` is now optional. Auth mode auto-detected from config. Login subcommand: `salesforce-mcp-lib login`. File-based token persistence in `~/.salesforce-mcp-lib/tokens/`. Five specific error subclasses (InvalidCredentialsError, InsufficientAccessError, ConsentDeniedError, SessionExpiredError, ConnectivityError). Backward compatible with client credentials flow.
 
 - 001-apex-mcp-server: Added Apex (Salesforce API 65.0) + TypeScript (ES2022, Node.js >= 20) + Zero external dependencies. Apex uses platform-native APIs only. TypeScript uses Node.js built-in modules only (no production npm dependencies). JSON-RPC 2.0 core is implemented in-repo, not imported.
 
@@ -47,4 +63,6 @@ Example: `v1.0.3-sf1.1.0-3` means npm `salesforce-mcp-lib@1.0.3` + SF `Salesforc
 - npm: `packages/salesforce-mcp-lib/package.json` → `"version"`
 - SF 2GP: `sfdx-project.json` → latest entry in `"packageAliases"`
 
+
+External Client App instead of Connected App everywhere
 <!-- MANUAL ADDITIONS END -->
