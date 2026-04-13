@@ -12,7 +12,7 @@ TypeScript proxy that bridges MCP clients to a Salesforce Apex MCP endpoint. Its
 ## What it does
 
 - Reads JSON-RPC 2.0 messages from **stdin**, forwards them over HTTPS to your Salesforce org
-- Authenticates via OAuth 2.0 **client_credentials** flow, caches the token, and re-authenticates automatically on 401
+- Authenticates via OAuth 2.0 (**client credentials** or **per-user authorization code with PKCE**), caches tokens, and refreshes automatically
 - Writes JSON-RPC responses to **stdout**, logs to **stderr** with automatic secret redaction
 
 ## When to use this package
@@ -29,17 +29,41 @@ See [Architecture: Proxy and Direct Connection](https://github.com/Damecek/sales
 
 ## Usage
 
-### With `npx` (no install needed)
+The auth mode is auto-detected: `--client-secret` present → client credentials flow; absent → per-user auth (authorization code + PKCE).
+
+### Per-User Auth (recommended)
+
+**Step 1 — one-time login:**
 
 ```bash
-npx salesforce-mcp-lib \
+npx salesforce-mcp-lib login \
   --instance-url https://your-org.my.salesforce.com \
-  --client-id YOUR_CLIENT_ID \
-  --client-secret YOUR_CLIENT_SECRET \
-  --endpoint /services/apexrest/mcp/minimal
+  --client-id YOUR_CLIENT_ID
 ```
 
-### In an MCP client config
+A browser window opens, you log in with your Salesforce credentials and grant access. Tokens are stored locally and persist across restarts via automatic refresh.
+
+**Step 2 — MCP client config** (no `--client-secret`):
+
+```json
+{
+  "mcpServers": {
+    "salesforce": {
+      "command": "npx",
+      "args": [
+        "-y", "salesforce-mcp-lib",
+        "--instance-url", "https://your-org.my.salesforce.com",
+        "--client-id", "YOUR_CLIENT_ID",
+        "--endpoint", "/services/apexrest/mcp/minimal"
+      ]
+    }
+  }
+}
+```
+
+See the [Per-User Auth Setup Guide](https://github.com/Damecek/salesforce-mcp-lib/blob/main/specs/003-per-user-auth/quickstart.md) for External Client App configuration, headless environments, and troubleshooting.
+
+### Client Credentials (service account)
 
 ```json
 {
@@ -58,17 +82,48 @@ npx salesforce-mcp-lib \
 }
 ```
 
-### Environment variables
+### With `npx` (no install needed)
 
-All options can be set via environment variables instead of CLI flags:
+```bash
+npx salesforce-mcp-lib \
+  --instance-url https://your-org.my.salesforce.com \
+  --client-id YOUR_CLIENT_ID \
+  --client-secret YOUR_CLIENT_SECRET \
+  --endpoint /services/apexrest/mcp/minimal
+```
 
-| CLI flag | Env variable | Required |
-|----------|-------------|----------|
-| `--instance-url` | `SF_INSTANCE_URL` | Yes |
-| `--client-id` | `SF_CLIENT_ID` | Yes |
-| `--client-secret` | `SF_CLIENT_SECRET` | Yes |
-| `--endpoint` | `SF_ENDPOINT` | Yes |
-| `--log-level` | `SF_LOG_LEVEL` | No (default: `info`) |
+## CLI reference
+
+### MCP server mode
+
+```
+salesforce-mcp-lib [options]
+```
+
+| CLI flag | Env variable | Required | Description |
+|----------|-------------|----------|-------------|
+| `--instance-url` | `SF_INSTANCE_URL` | Yes | Salesforce org URL |
+| `--client-id` | `SF_CLIENT_ID` | Yes | External Client App consumer key |
+| `--client-secret` | `SF_CLIENT_SECRET` | No* | External Client App consumer secret |
+| `--endpoint` | `SF_ENDPOINT` | Yes | Apex REST endpoint path |
+| `--callback-port` | `SF_CALLBACK_PORT` | No | OAuth callback port (default: `13338`) |
+| `--log-level` | `SF_LOG_LEVEL` | No | `debug` / `info` / `warn` / `error` (default: `info`) |
+
+\* When `--client-secret` is provided → client credentials flow. When omitted → per-user auth (requires prior `login`).
+
+### Login subcommand
+
+```
+salesforce-mcp-lib login [options]
+```
+
+| CLI flag | Env variable | Required | Description |
+|----------|-------------|----------|-------------|
+| `--instance-url` | `SF_INSTANCE_URL` | Yes | Salesforce org URL |
+| `--client-id` | `SF_CLIENT_ID` | Yes | External Client App consumer key |
+| `--headless` | `SF_HEADLESS` | No | Print auth URL instead of opening browser |
+| `--callback-port` | `SF_CALLBACK_PORT` | No | OAuth callback port (default: `13338`) |
+| `--log-level` | `SF_LOG_LEVEL` | No | Log level (default: `info`) |
 
 ## Prerequisites
 
@@ -76,9 +131,9 @@ This proxy connects to an Apex MCP endpoint running in your Salesforce org. You 
 
 1. **Salesforce MCP Library** installed in your org ([install instructions](https://github.com/Damecek/salesforce-mcp-lib#1-install-the-apex-framework))
 2. At least one `@RestResource` endpoint with registered MCP capabilities
-3. An **External Client App** with OAuth 2.0 Client Credentials flow enabled
+3. An **External Client App** — either Client Credentials flow (service account) or Authorization Code + PKCE flow (per-user auth)
 
-See the [main README](https://github.com/Damecek/salesforce-mcp-lib) for the ECA-first quick-start guide.
+See the [main README](https://github.com/Damecek/salesforce-mcp-lib) for the ECA quick-start guide (both auth modes).
 
 ## How it works
 

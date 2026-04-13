@@ -65,4 +65,13 @@ Example: `v1.0.3-sf1.1.0-3` means npm `salesforce-mcp-lib@1.0.3` + SF `Salesforc
 
 
 External Client App instead of Connected App everywhere
+
+## Documentation
+
+Two READMEs cover the npm proxy — keep them in sync:
+
+- `README.md` (root) — full project docs, both auth modes, CLI reference, ECA setup
+- `packages/salesforce-mcp-lib/README.md` — npm package README, concise subset (usage, CLI reference, prerequisites)
+
+When updating CLI flags, auth flows, or usage examples in the root README, check whether `packages/salesforce-mcp-lib/README.md` needs a matching update.
 <!-- MANUAL ADDITIONS END -->
