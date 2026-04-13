@@ -12,7 +12,7 @@ Two packages, zero external dependencies:
 | Package | What it does | Install |
 |---------|-------------|---------|
 | **Apex framework** (2GP unlocked) | JSON-RPC 2.0 core + MCP server running natively in your Salesforce org | `sf package install` |
-| **npm stdio proxy** | Bridges any MCP client to the Apex endpoint via OAuth 2.0 | `npx salesforce-mcp-lib` |
+| **npm stdio proxy** | OAuth 2.0 lifecycle + stdio-to-HTTPS bridge — configure once, run forever. Optional when the consumer already handles Salesforce tokens. | `npx salesforce-mcp-lib` |
 
 ---
 
@@ -22,7 +22,21 @@ Two packages, zero external dependencies:
 2. **npm proxy** authenticates via OAuth 2.0 (client credentials or per-user login), forwards requests over HTTPS, and handles token refresh automatically
 3. **Apex MCP Server** dispatches requests to your registered **tools**, **resources**, and **prompts** — all running inside Salesforce with full platform security
 
+Steps 1–2 apply when using the npm proxy. If your MCP host can reach the Apex endpoint directly over HTTPS with a valid Bearer token, only step 3 is required.
+
 The Apex server is **stateless** — it rebuilds its handler chain on every request. No session cleanup, no state bugs, no cross-request data leakage.
+
+### When you need the proxy (and when you don't)
+
+The Apex `@RestResource` endpoint **is** the MCP server — it implements JSON-RPC 2.0, capability negotiation, and all tool/resource/prompt dispatch. The TypeScript proxy is an authentication and transport bridge, not protocol logic. Most MCP clients support both stdio and HTTP, so the proxy's main value is not the transport — it is **OAuth token lifecycle management**: acquire a token, cache it, refresh it on expiry, and re-authenticate on 401. Configure once, run forever.
+
+**You need the proxy when** your MCP host does not manage Salesforce OAuth tokens on its own. This covers most desktop clients (Claude Desktop, Cursor, VS Code extensions) and any integration without a built-in Salesforce credential store.
+
+**You can skip the proxy when** the consumer already handles Salesforce OAuth — for example, a cloud platform with native Salesforce connectors, an automation service like n8n, or a custom agent orchestration layer that acquires tokens, fires an agent with MCP, routes the response back, and repeats. The Apex endpoint is stateless, so there is no session to maintain between calls.
+
+> If you remove the proxy, you are not removing complexity. You are taking ownership of it in another place — specifically, OAuth token acquisition, refresh logic, and session management move into your consumer.
+
+For a deeper discussion of both paths and the direct-connection requirements, see [docs/architecture.md](docs/architecture.md).
 
 ### Security — 4 layers, 3 of them automatic
 
