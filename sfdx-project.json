@@ -1,7 +1,7 @@
 {
   "packageDirectories": [
     {
-      "versionNumber": "1.1.0.NEXT",
+      "versionNumber": "1.2.0.NEXT",
       "path": "force-app",
       "default": true,
       "package": "SalesforceMcpLib"
@@ -15,6 +15,7 @@
     "SalesforceMcpLib": "0HodL0000002PQXSA2",
     "SalesforceMcpLib@1.1.0-1": "04tdL000000S1PNQA0",
     "SalesforceMcpLib@1.1.0-2": "04tdL000000SnPBQA0",
-    "SalesforceMcpLib@1.1.0-3": "04tdL000000So9xQAC"
+    "SalesforceMcpLib@1.1.0-3": "04tdL000000So9xQAC",
+    "SalesforceMcpLib@1.2.0-1": "04tdL000000Ut0fQAC"
   }
 }
