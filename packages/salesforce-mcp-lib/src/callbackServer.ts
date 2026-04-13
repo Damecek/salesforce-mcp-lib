@@ -71,7 +71,7 @@ export function startCallbackServer(
   const basePort = options?.port ?? 13338;
   const timeout = options?.timeout ?? 120_000;
   const expectedState = options?.expectedState;
-  const callbackHost = options?.callbackHost ?? '127.0.0.1';
+  const callbackHost = options?.callbackHost ?? 'localhost';
   const maxAttempts = 5;
 
   return new Promise<CallbackServer>((resolveStart, rejectStart) => {

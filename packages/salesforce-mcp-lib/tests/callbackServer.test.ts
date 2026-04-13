@@ -59,7 +59,7 @@ describe('startCallbackServer', () => {
       }),
     );
 
-    assert.match(server.callbackUrl, /^http:\/\/127\.0\.0\.1:\d+\/oauth\/callback$/);
+    assert.match(server.callbackUrl, /^http:\/\/localhost:\d+\/oauth\/callback$/);
 
     const waitPromise = server.waitForCode();
     const response = await httpGet(
