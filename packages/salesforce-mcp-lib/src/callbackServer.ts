@@ -71,7 +71,7 @@ export function startCallbackServer(
   const basePort = options?.port ?? 13338;
   const timeout = options?.timeout ?? 120_000;
   const expectedState = options?.expectedState;
-  const callbackHost = options?.callbackHost ?? 'localhost';
+  const callbackHost = options?.callbackHost ?? '127.0.0.1';
   const maxAttempts = 5;
 
   return new Promise<CallbackServer>((resolveStart, rejectStart) => {
@@ -97,6 +97,16 @@ export function startCallbackServer(
       // Check for error params (Salesforce sends error + error_description on deny).
       const errorParam = reqUrl.searchParams.get('error');
       if (errorParam) {
+        // Validate state before processing error — prevents LAN-based DoS
+        // where a spoofed error request would permanently fail the login
+        // before the legitimate browser callback arrives.
+        const errorState = reqUrl.searchParams.get('state');
+        if (expectedState && errorState !== expectedState) {
+          res.writeHead(400, { 'Content-Type': 'text/plain' });
+          res.end('Invalid state parameter');
+          return;
+        }
+
         const errorDesc =
           reqUrl.searchParams.get('error_description') ?? 'Unknown error';
         res.writeHead(200, SECURITY_HEADERS);
@@ -161,10 +171,10 @@ export function startCallbackServer(
         if (err.code === 'EADDRINUSE' && attempt < maxAttempts) {
           tryListen(port + 1, attempt + 1, listenOptions);
         } else if (
-          listenOptions.host === '::1' &&
+          listenOptions.host === '127.0.0.1' &&
           (err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL')
         ) {
-          tryListen(port, attempt, { host: '127.0.0.1' });
+          tryListen(port, attempt, { host: '::1' });
         } else {
           rejectStart(
             new Error(
@@ -213,6 +223,6 @@ export function startCallbackServer(
       server.listen({ port, ...listenOptions });
     }
 
-    tryListen(basePort, 1, { host: '::1' });
+    tryListen(basePort, 1, { host: '127.0.0.1' });
   });
 }

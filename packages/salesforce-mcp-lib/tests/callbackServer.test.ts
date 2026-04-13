@@ -59,7 +59,7 @@ describe('startCallbackServer', () => {
       }),
     );
 
-    assert.match(server.callbackUrl, /^http:\/\/localhost:\d+\/oauth\/callback$/);
+    assert.match(server.callbackUrl, /^http:\/\/127\.0\.0\.1:\d+\/oauth\/callback$/);
 
     const waitPromise = server.waitForCode();
     const response = await httpGet(
@@ -116,7 +116,7 @@ describe('startCallbackServer', () => {
       /OAuth callback error: server_error — contains%/,
     );
     const response = await httpGet(
-      `${server.callbackUrl}?error=server_error&error_description=contains%25`,
+      `${server.callbackUrl}?error=server_error&error_description=contains%25&state=state-789`,
     );
 
     assert.equal(response.statusCode, 200);
@@ -143,12 +143,47 @@ describe('startCallbackServer', () => {
       return true;
     });
     const response = await httpGet(
-      `${server.callbackUrl}?error=access_denied&error_description=consent%25%20required`,
+      `${server.callbackUrl}?error=access_denied&error_description=consent%25%20required&state=state-999`,
     );
 
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /Authorization denied/i);
     await rejected;
+  });
+
+  it('ignores error callback with wrong state and keeps waiting for valid callback', async () => {
+    const server = registerServer(
+      await startCallbackServer({
+        port: 0,
+        expectedState: 'expected-state',
+        timeout: 5000,
+      }),
+    );
+
+    const waitPromise = server.waitForCode();
+
+    // Spoofed error with wrong state → HTTP 400, server keeps waiting.
+    const spoofedError = await httpGet(
+      `${server.callbackUrl}?error=access_denied&error_description=spoofed&state=wrong-state`,
+    );
+    assert.equal(spoofedError.statusCode, 400);
+    assert.match(spoofedError.body, /Invalid state parameter/);
+
+    // Spoofed error with no state → HTTP 400, server keeps waiting.
+    const noStateError = await httpGet(
+      `${server.callbackUrl}?error=access_denied&error_description=spoofed`,
+    );
+    assert.equal(noStateError.statusCode, 400);
+    assert.match(noStateError.body, /Invalid state parameter/);
+
+    // Legitimate success callback → resolves the promise.
+    const goodResponse = await httpGet(
+      `${server.callbackUrl}?code=real-code&state=expected-state`,
+    );
+    assert.equal(goodResponse.statusCode, 200);
+
+    const result = await waitPromise;
+    assert.deepEqual(result, { code: 'real-code', state: 'expected-state' });
   });
 
   it('accepts loopback connections on either IPv6 or IPv4 fallback', async () => {
