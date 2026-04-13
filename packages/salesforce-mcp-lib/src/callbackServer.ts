@@ -131,18 +131,13 @@ export function startCallbackServer(
       }
 
       // Validate state for CSRF prevention.
+      // On mismatch, return HTTP 400 to the requester but keep the server
+      // waiting for the legitimate callback.  This prevents a LAN-based DoS
+      // where a spoofed request with wrong state would permanently reject
+      // the login promise before the real browser callback arrives.
       if (expectedState && state !== expectedState) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
         res.end('Invalid state parameter — possible CSRF attack');
-        if (!settled) {
-          settled = true;
-          if (timeoutHandle) clearTimeout(timeoutHandle);
-          rejectCode!(
-            new Error(
-              'OAuth state mismatch — the callback state does not match the expected value. This may indicate a CSRF attack.'
-            )
-          );
-        }
         return;
       }
 
@@ -166,7 +161,7 @@ export function startCallbackServer(
         if (err.code === 'EADDRINUSE' && attempt < maxAttempts) {
           tryListen(port + 1, attempt + 1, listenOptions);
         } else if (
-          listenOptions.host === '::' &&
+          listenOptions.host === '::1' &&
           (err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL')
         ) {
           tryListen(port, attempt, { host: '127.0.0.1' });
@@ -218,6 +213,6 @@ export function startCallbackServer(
       server.listen({ port, ...listenOptions });
     }
 
-    tryListen(basePort, 1, { host: '::', ipv6Only: false });
+    tryListen(basePort, 1, { host: '::1' });
   });
 }

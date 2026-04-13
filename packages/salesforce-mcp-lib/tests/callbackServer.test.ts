@@ -72,7 +72,7 @@ describe('startCallbackServer', () => {
     assert.deepEqual(result, { code: 'auth-code-123', state: 'state-123' });
   });
 
-  it('rejects state mismatch and returns HTTP 400', async () => {
+  it('ignores state mismatch (HTTP 400) and resolves on subsequent valid callback', async () => {
     const server = registerServer(
       await startCallbackServer({
         port: 0,
@@ -82,14 +82,23 @@ describe('startCallbackServer', () => {
     );
 
     const waitPromise = server.waitForCode();
-    const rejected = assert.rejects(waitPromise, /OAuth state mismatch/);
-    const response = await httpGet(
+
+    // Wrong state → HTTP 400, but server keeps waiting.
+    const badResponse = await httpGet(
       `${server.callbackUrl}?code=auth-code-123&state=wrong-state`,
     );
+    assert.equal(badResponse.statusCode, 400);
+    assert.match(badResponse.body, /Invalid state parameter/);
 
-    assert.equal(response.statusCode, 400);
-    assert.match(response.body, /Invalid state parameter/);
-    await rejected;
+    // Correct state → promise resolves.
+    const goodResponse = await httpGet(
+      `${server.callbackUrl}?code=real-code&state=expected-state`,
+    );
+    assert.equal(goodResponse.statusCode, 200);
+    assert.match(goodResponse.body, /Login successful/i);
+
+    const result = await waitPromise;
+    assert.deepEqual(result, { code: 'real-code', state: 'expected-state' });
   });
 
   it('preserves literal percent characters in callback error descriptions', async () => {

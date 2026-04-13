@@ -9,7 +9,7 @@ import {
   getInstanceUrl,
   resetTokenCache,
 } from '../src/oauth.js';
-import { SalesforceAuthError } from '../src/errors.js';
+import { SalesforceAuthError, InvalidCredentialsError } from '../src/errors.js';
 import type { BridgeConfig } from '../src/types.js';
 
 let serverHandler: (req: IncomingMessage, res: ServerResponse) => void;
@@ -215,7 +215,26 @@ describe('authenticate() - errors', () => {
     });
   });
 
-  it('throws on HTTP 401', async () => {
+  it('parses OAuth error body from HTTP 400 into InvalidCredentialsError', async () => {
+    serverHandler = (_req, res) => {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          error: 'invalid_client',
+          error_description: 'client authentication failed',
+        })
+      );
+    };
+
+    await assert.rejects(() => authenticate(makeConfig()), (err: unknown) => {
+      assert(err instanceof InvalidCredentialsError);
+      assert(err.message.includes('invalid_client'));
+      assert(err.message.includes('client authentication failed'));
+      return true;
+    });
+  });
+
+  it('parses OAuth error body from HTTP 401', async () => {
     serverHandler = (_req, res) => {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'unauthorized' }));
@@ -223,12 +242,12 @@ describe('authenticate() - errors', () => {
 
     await assert.rejects(() => authenticate(makeConfig()), (err: unknown) => {
       assert(err instanceof SalesforceAuthError);
-      assert(err.message.includes('401'));
+      assert(err.message.includes('unauthorized'));
       return true;
     });
   });
 
-  it('throws on HTTP 500', async () => {
+  it('throws on HTTP 500 with non-JSON body', async () => {
     serverHandler = (_req, res) => {
       res.writeHead(500, { 'Content-Type': 'text/plain' });
       res.end('Internal Server Error');
@@ -236,7 +255,7 @@ describe('authenticate() - errors', () => {
 
     await assert.rejects(() => authenticate(makeConfig()), (err: unknown) => {
       assert(err instanceof SalesforceAuthError);
-      assert(err.message.includes('500'));
+      assert(err.message.includes('not valid JSON'));
       return true;
     });
   });

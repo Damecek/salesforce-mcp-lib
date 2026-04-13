@@ -172,19 +172,11 @@ function postForm(url: URL, body: string): Promise<string> {
         const chunks: Buffer[] = [];
         res.on("data", (chunk: Buffer) => chunks.push(chunk));
         res.on("end", () => {
-          const text = Buffer.concat(chunks).toString("utf-8");
-          if (
-            res.statusCode !== undefined &&
-            (res.statusCode < 200 || res.statusCode >= 300)
-          ) {
-            reject(
-              new SalesforceAuthError(
-                `OAuth token request failed with HTTP ${res.statusCode}: ${text.slice(0, 300)}`,
-              ),
-            );
-            return;
-          }
-          resolve(text);
+          // Always resolve — error bodies (HTTP 400 with JSON error fields)
+          // are parsed by the caller so Salesforce OAuth error codes get
+          // mapped to specific error subclasses (InvalidCredentialsError, etc.)
+          // instead of a generic SalesforceAuthError.
+          resolve(Buffer.concat(chunks).toString("utf-8"));
         });
       },
     );
