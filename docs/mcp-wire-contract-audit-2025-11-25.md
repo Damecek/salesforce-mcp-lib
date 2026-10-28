@@ -1,5 +1,8 @@
 # MCP Wire Contract Audit — Protocol Version 2025-11-25
 
+> **Superseded** on 2026-10-28 by [mcp-wire-contract-2026-07-28.md](mcp-wire-contract-2026-07-28.md). This audit describes
+> the 1.x classes (`JsonRpc*`, batch support, `resources/templates/call`), which 2.0.0 removes. Kept for history only.
+
 **Date**: 2026-03-30
 **Auditor**: Automated generation during implementation
 **Package**: SalesforceMcpLib v1.1.0

@@ -15,6 +15,8 @@ export interface BridgeConfig {
   endpoint: string;
   /** Stderr log level. Defaults to 'info'. */
   logLevel?: string;
+  /** Total deadline for one OAuth token request in ms. Test seam, no CLI flag. Defaults to 30000. */
+  authTimeoutMs?: number;
 }
 
 /** Salesforce OAuth 2.0 token response (both client_credentials and authorization_code flows). */
@@ -73,6 +75,12 @@ export interface AuthConfig {
   headless?: boolean;
   /** Port for local OAuth callback server. Defaults to 13338. */
   callbackPort?: number;
+  /** Deadline for one forwarded request incl. authentication, in ms. Defaults to 120000. */
+  requestTimeoutMs?: number;
+  /** Maximum concurrent HTTP requests to Salesforce. Defaults to 4. */
+  maxConcurrency?: number;
+  /** Total deadline for one OAuth token request in ms. Test seam, no CLI flag. Defaults to 30000. */
+  authTimeoutMs?: number;
 }
 
 /** Determined at startup from config shape. Immutable for process lifetime. */

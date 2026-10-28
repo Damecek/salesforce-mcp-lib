@@ -1,22 +1,45 @@
 /**
- * Tool metadata annotations that provide hints to MCP clients.
- *
- * <p>These hints help clients decide how to present or gate tool
- * invocations (e.g. confirming destructive operations, caching
- * idempotent calls, etc.). All fields are optional; when {@code null}
- * the client applies its own defaults.</p>
+ * Behaviour hints for a tool. Clients must treat them as untrusted hints.
  */
-public class McpToolAnnotations {
+public inherited sharing class McpToolAnnotations {
+    private String titleText;
+    private Boolean readOnlyHint;
+    private Boolean destructiveHint;
+    private Boolean idempotentHint;
+    private Boolean openWorldHint;
 
-    /** Hint that the tool only reads data and has no side effects. */
-    public Boolean readOnlyHint;
+    public McpToolAnnotations title(String value) {
+        this.titleText = value;
+        return this;
+    }
 
-    /** Hint that the tool may perform destructive or irreversible changes. */
-    public Boolean destructiveHint;
+    public McpToolAnnotations readOnly(Boolean value) {
+        this.readOnlyHint = value;
+        return this;
+    }
 
-    /** Hint that repeated calls with the same arguments yield the same result. */
-    public Boolean idempotentHint;
+    public McpToolAnnotations destructive(Boolean value) {
+        this.destructiveHint = value;
+        return this;
+    }
 
-    /** Hint that the tool interacts with systems outside the server's control. */
-    public Boolean openWorldHint;
+    public McpToolAnnotations idempotent(Boolean value) {
+        this.idempotentHint = value;
+        return this;
+    }
+
+    public McpToolAnnotations openWorld(Boolean value) {
+        this.openWorldHint = value;
+        return this;
+    }
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> m = new Map<String, Object>();
+        if (titleText != null) { m.put('title', titleText); }
+        if (readOnlyHint != null) { m.put('readOnlyHint', readOnlyHint); }
+        if (destructiveHint != null) { m.put('destructiveHint', destructiveHint); }
+        if (idempotentHint != null) { m.put('idempotentHint', idempotentHint); }
+        if (openWorldHint != null) { m.put('openWorldHint', openWorldHint); }
+        return m;
+    }
 }

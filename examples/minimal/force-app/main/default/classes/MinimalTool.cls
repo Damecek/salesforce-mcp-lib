@@ -1,32 +1,18 @@
 /**
  * Minimal MCP tool that echoes the provided message.
  */
-public inherited sharing class MinimalTool extends McpToolDefinition {
+public with sharing class MinimalTool extends McpTool {
     public MinimalTool() {
-        this.name = 'echo';
-        this.description = 'Echoes the provided message back to the caller';
+        super('echo');
+        title('Echo')
+            .description('Echoes the provided message back to the caller')
+            .input(McpSchema.obj()
+                .requiredProperty('message', McpSchema.str().describe('The message to echo').minLength(1).maxLength(1000))
+                .closed())
+            .annotations(new McpToolAnnotations().readOnly(true).openWorld(false));
     }
-    public override Map<String, Object> inputSchema() {
-        return new Map<String, Object>{
-            'type' => 'object',
-            'properties' => new Map<String, Object>{
-                'message' => new Map<String, Object>{
-                    'type' => 'string',
-                    'description' => 'The message to echo'
-                }
-            },
-            'required' => new List<String>{ 'message' }
-        };
-    }
-    public override void validate(Map<String, Object> arguments) {
-        if (!arguments.containsKey('message')) {
-            throw new McpInvalidParamsException('message is required');
-        }
-    }
-    public override McpToolResult execute(Map<String, Object> arguments) {
-        String msg = (String) arguments.get('message');
-        McpToolResult result = new McpToolResult();
-        result.content = new List<McpTextContent>{ new McpTextContent(msg) };
-        return result;
+
+    public override McpToolResult execute(McpRequest request) {
+        return McpToolResult.text(request.requireString('message'));
     }
 }

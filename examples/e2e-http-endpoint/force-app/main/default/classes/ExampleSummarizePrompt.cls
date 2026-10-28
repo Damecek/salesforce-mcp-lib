@@ -1,25 +1,20 @@
 /**
  * Example prompt for summarizing a Salesforce record.
  */
-public inherited sharing class ExampleSummarizePrompt extends McpPromptDefinition {
+public with sharing class ExampleSummarizePrompt extends McpPrompt {
     public ExampleSummarizePrompt() {
-        this.name = 'summarize_record';
-        this.description = 'Generate a prompt to summarize a Salesforce record';
-        this.arguments = new List<McpPromptArgumentDefinition>{
-            new McpPromptArgumentDefinition('objectName', 'API name of the object', true),
-            new McpPromptArgumentDefinition('recordId', 'The record ID to summarize', true)
-        };
+        super('summarize_record');
+        title('Summarize record')
+            .description('Generate a prompt to summarize a Salesforce record')
+            .argument('objectName', 'API name of the object', true)
+            .argument('recordId', 'The record ID to summarize', true);
     }
-    public override McpPromptResult get(Map<String, String> arguments) {
-        String objName = arguments.get('objectName');
-        String recordId = arguments.get('recordId');
-        McpPromptResult result = new McpPromptResult();
-        result.description = 'Summarize ' + objName + ' record';
-        result.messages = new List<McpPromptMessage>{
-            new McpPromptMessage('user', new McpTextContent(
-                'Please summarize the ' + objName + ' record with ID ' + recordId + '. Include key fields and current status.'
-            ))
-        };
-        return result;
+
+    public override McpPromptResult get(McpRequest request) {
+        String objName = request.promptArguments().get('objectName');
+        String recordId = request.promptArguments().get('recordId');
+        return new McpPromptResult()
+            .description('Summarize ' + objName + ' record')
+            .user(McpContent.text('Please summarize the ' + objName + ' record with ID ' + recordId + '. Include key fields and current status.'));
     }
 }

@@ -1,20 +1,14 @@
 /**
  * Development harness status resource.
  */
-public class DevMcpHarnessResource extends McpResourceDefinition {
+public with sharing class DevMcpHarnessResource extends McpResource {
     public DevMcpHarnessResource() {
-        this.uri = 'dev://harness/status';
-        this.name = 'Harness Status';
-        this.description = 'Current status of the development harness';
-        this.mimeType = 'application/json';
+        super('dev://harness/status', 'harness_status');
+        title('Harness status').description('Current status of the development harness').mimeType('application/json');
     }
-    public override McpResourceResult read() {
-        McpResourceResult result = new McpResourceResult();
-        McpResourceContentItem item = new McpResourceContentItem();
-        item.uri = this.uri;
-        item.mimeType = this.mimeType;
-        item.text = '{"status":"running","timestamp":"' + String.valueOf(Datetime.now()) + '"}';
-        result.contents = new List<McpResourceContentItem>{ item };
-        return result;
+
+    public override McpResourceResult read(McpRequest request) {
+        String body = JSON.serialize(new Map<String, Object>{ 'status' => 'running', 'timestamp' => Datetime.now() });
+        return McpResourceResult.of(McpResourceContents.text(getUri(), 'application/json', body));
     }
 }

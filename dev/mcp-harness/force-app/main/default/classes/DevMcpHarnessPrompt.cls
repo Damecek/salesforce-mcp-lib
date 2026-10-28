@@ -1,20 +1,16 @@
 /**
  * Development harness greeting prompt.
  */
-public class DevMcpHarnessPrompt extends McpPromptDefinition {
+public with sharing class DevMcpHarnessPrompt extends McpPrompt {
     public DevMcpHarnessPrompt() {
-        this.name = 'dev_greet';
-        this.description = 'Development harness greeting prompt';
-        this.arguments = new List<McpPromptArgumentDefinition>{
-            new McpPromptArgumentDefinition('name', 'Name to greet', true)
-        };
+        super('dev_greet');
+        description('Development harness greeting prompt').argument('name', 'Name to greet', true);
     }
-    public override McpPromptResult get(Map<String, String> arguments) {
-        McpPromptResult result = new McpPromptResult();
-        result.description = 'Greeting for ' + arguments.get('name');
-        result.messages = new List<McpPromptMessage>{
-            new McpPromptMessage('user', new McpTextContent('Hello, ' + arguments.get('name') + '! Welcome to the MCP harness.'))
-        };
-        return result;
+
+    public override McpPromptResult get(McpRequest request) {
+        String name = request.promptArguments().get('name');
+        return new McpPromptResult()
+            .description('Greeting for ' + name)
+            .user(McpContent.text('Hello, ' + name + '! Welcome to the MCP harness.'));
     }
 }

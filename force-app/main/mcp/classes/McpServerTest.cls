@@ -1,394 +1,224 @@
-/**
- * Comprehensive integration tests for {@link McpServer}.
- *
- * <p>Each test exercises the full server pipeline: build an {@code McpServer},
- * register test capabilities, construct a {@code RestRequest} with a JSON-RPC
- * body, invoke {@link McpServer#handleRequest}, and assert against the
- * deserialized {@code RestResponse} body.</p>
- */
 @IsTest
-public class McpServerTest {
+private class McpServerTest {
+    private static final String SERVER_INFO_KEY = 'io.modelcontextprotocol/serverInfo';
 
-    // ── Test doubles ──────────────────────────────────────────────────
+    private static void assertConfigurationError(String description, Exception e) {
+        Assert.isNotNull(e, description + ' should throw');
+        Assert.isTrue(e instanceof McpConfigurationException, description + ' threw ' + e.getTypeName());
+    }
 
-    private class TestTool extends McpToolDefinition {
-        public TestTool() {
-            this.name = 'test_tool';
-            this.description = 'A test tool';
+    @IsTest
+    static void discoverReturnsTheModernShape() {
+        McpTestKit.Reply r = McpTestKit.modern(McpTestKit.fullServer(), 'server/discover', null);
+        Assert.areEqual(200, r.status);
+        Assert.areEqual('application/json', r.headers.get('Content-Type'));
+        Assert.areEqual(1, r.json.get('id'));
+        Map<String, Object> result = r.result();
+        Assert.areEqual('complete', result.get('resultType'));
+        Assert.areEqual(0, result.get('ttlMs'));
+        Assert.areEqual('private', result.get('cacheScope'));
+        Assert.areEqual(new List<Object>{ '2026-07-28', '2025-11-25' }, (List<Object>) result.get('supportedVersions'));
+        Assert.areEqual('Use echo first.', result.get('instructions'));
+        Map<String, Object> caps = (Map<String, Object>) result.get('capabilities');
+        Assert.areEqual(new Set<String>{ 'tools', 'resources', 'prompts', 'completions' }, caps.keySet());
+        Map<String, Object> info = (Map<String, Object>) ((Map<String, Object>) result.get('_meta')).get(SERVER_INFO_KEY);
+        Assert.areEqual('acme-test', info.get('name'));
+        Assert.areEqual('1.2.3', info.get('version'));
+        Assert.areEqual('Acme', info.get('title'));
+        Assert.areEqual('Test server', info.get('description'));
+        Assert.areEqual('https://example.com', info.get('websiteUrl'));
+        Map<String, Object> icon = (Map<String, Object>) ((List<Object>) info.get('icons'))[0];
+        Assert.areEqual('https://example.com/i.png', icon.get('src'));
+        Assert.areEqual('light', icon.get('theme'));
+        Assert.areEqual(new List<Object>{ '48x48' }, (List<Object>) icon.get('sizes'));
+    }
+
+    @IsTest
+    static void discoverUsesConfiguredListCache() {
+        McpServer s = McpTestKit.fullServer().listCache(60000, McpServer.CACHE_PUBLIC);
+        Map<String, Object> result = McpTestKit.modern(s, 'server/discover', null).result();
+        Assert.areEqual(60000, result.get('ttlMs'));
+        Assert.areEqual('public', result.get('cacheScope'));
+        Assert.areEqual(60000, McpTestKit.modern(s, 'tools/list', null).result().get('ttlMs'));
+        Assert.areEqual(60000, McpTestKit.modern(s, 'prompts/list', null).result().get('ttlMs'));
+        Assert.areEqual(60000, McpTestKit.modern(s, 'resources/list', null).result().get('ttlMs'));
+        Assert.areEqual(60000, McpTestKit.modern(s, 'resources/templates/list', null).result().get('ttlMs'));
+    }
+
+    @IsTest
+    static void discoverOmitsOptionalServerInfoAndInstructionsWhenUnset() {
+        McpServer s = new McpServer('plain', '0.1').tool(new McpTestKit.EchoTool());
+        Map<String, Object> result = McpTestKit.modern(s, 'server/discover', null).result();
+        Assert.isFalse(result.containsKey('instructions'));
+        Map<String, Object> info = (Map<String, Object>) ((Map<String, Object>) result.get('_meta')).get(SERVER_INFO_KEY);
+        Assert.areEqual(new Set<String>{ 'name', 'version' }, info.keySet());
+    }
+
+    @IsTest
+    static void legacyInitializeAndPing() {
+        McpTestKit.Reply init = McpTestKit.post(McpTestKit.fullServer(), new Map<String, String>(), McpTestKit.message('init-1', 'initialize',
+            new Map<String, Object>{ 'protocolVersion' => '2025-11-25', 'capabilities' => new Map<String, Object>(),
+                'clientInfo' => new Map<String, Object>{ 'name' => 'c', 'version' => '1' } }));
+        Assert.areEqual('init-1', init.json.get('id'));
+        Map<String, Object> result = init.result();
+        Assert.areEqual('2025-11-25', result.get('protocolVersion'));
+        Assert.areEqual('Use echo first.', result.get('instructions'));
+        Map<String, Object> info = (Map<String, Object>) result.get('serverInfo');
+        Assert.areEqual('acme-test', info.get('name'));
+        Assert.areEqual('Acme', info.get('title'));
+        Assert.isFalse(result.containsKey('resultType'));
+        Assert.isFalse(result.containsKey('ttlMs'));
+        Assert.isFalse(result.containsKey('cacheScope'));
+        Assert.isFalse(result.containsKey('_meta'));
+        McpTestKit.Reply ping = McpTestKit.legacy(McpTestKit.fullServer(), 'ping', null);
+        Assert.areEqual(200, ping.status);
+        Assert.areEqual(0, ping.result().size());
+    }
+
+    @IsTest
+    static void legacyListResultsCarryNoModernFields() {
+        for (String method : new List<String>{ 'tools/list', 'resources/list', 'resources/templates/list', 'prompts/list' }) {
+            Map<String, Object> result = McpTestKit.legacy(McpTestKit.fullServer(), method, null).result();
+            Assert.isFalse(result.containsKey('resultType'), method);
+            Assert.isFalse(result.containsKey('ttlMs'), method);
+            Assert.isFalse(result.containsKey('cacheScope'), method);
+            Assert.isFalse(result.containsKey('_meta'), method);
         }
-        public override Map<String, Object> inputSchema() {
-            return new Map<String, Object>{
-                'type' => 'object',
-                'properties' => new Map<String, Object>{
-                    'input' => new Map<String, Object>{ 'type' => 'string' }
-                }
-            };
-        }
-        public override void validate(Map<String, Object> arguments) {
-            if (!arguments.containsKey('input')) {
-                throw new McpInvalidParamsException('input is required');
-            }
-        }
-        public override McpToolResult execute(Map<String, Object> arguments) {
-            McpToolResult result = new McpToolResult();
-            result.content = new List<McpTextContent>{ new McpTextContent('Result: ' + arguments.get('input')) };
-            return result;
-        }
     }
 
-    private class ThrowingTool extends McpToolDefinition {
-        public ThrowingTool() {
-            this.name = 'throwing_tool';
-            this.description = 'A tool that throws';
-        }
-        public override Map<String, Object> inputSchema() {
-            return new Map<String, Object>{ 'type' => 'object' };
-        }
-        public override void validate(Map<String, Object> arguments) { }
-        public override McpToolResult execute(Map<String, Object> arguments) {
-            throw new IllegalArgumentException('Something went wrong');
-        }
+    @IsTest
+    static void errorMessagesAreEscapedIntoValidJson() {
+        String expected = 'no boom \\ "here"\n';
+        McpTestKit.Reply r = McpTestKit.modern(McpTestKit.fullServer(), 'prompts/get',
+            new Map<String, Object>{ 'name' => 'greet', 'arguments' => new Map<String, Object>{ 'name' => 'boom' } });
+        Assert.areEqual(expected, r.message());
+        Assert.isTrue(r.body.contains('\\\\'));
+        Assert.isTrue(r.body.contains('\\n'));
+        Assert.isTrue(r.body.contains('\\"here\\"'));
+        McpTestKit.Reply tool = McpTestKit.modern(new McpServer('s', '1').tool(new McpTestKit.ModeTool('m', 'mcp')), 'tools/call',
+            new Map<String, Object>{ 'name' => 'm' });
+        Assert.areEqual('bad "quote" \\ back\nline', (String) ((Map<String, Object>) tool.items('content')[0]).get('text'));
     }
 
-    private class AnnotatedTool extends McpToolDefinition {
-        public AnnotatedTool() {
-            this.name = 'annotated_tool';
-            this.description = 'A tool with annotations';
-            this.annotations = new McpToolAnnotations();
-            this.annotations.readOnlyHint = true;
-            this.annotations.destructiveHint = false;
-        }
-        public override Map<String, Object> inputSchema() {
-            return new Map<String, Object>{ 'type' => 'object' };
-        }
-        public override void validate(Map<String, Object> arguments) { }
-        public override McpToolResult execute(Map<String, Object> arguments) {
-            McpToolResult result = new McpToolResult();
-            result.content = new List<McpTextContent>{ new McpTextContent('OK') };
-            return result;
+    @IsTest
+    static void instructionsAreEscaped() {
+        McpServer s = new McpServer('s', '1').instructions('Say "hi" \\ twice\nplease').tool(new McpTestKit.EchoTool());
+        Assert.areEqual('Say "hi" \\ twice\nplease', McpTestKit.modern(s, 'server/discover', null).result().get('instructions'));
+    }
+
+    // ---------------------------------------------------------------- configuration
+
+    @IsTest
+    static void constructorRejectsBlankNameOrVersion() {
+        for (List<String> args : new List<List<String>>{ new List<String>{ null, '1' }, new List<String>{ '', '1' }, new List<String>{ 'n', ' ' }, new List<String>{ 'n', null } }) {
+            Exception caught;
+            try { new McpServer(args[0], args[1]); } catch (Exception e) { caught = e; }
+            assertConfigurationError('blank ' + args, caught);
         }
     }
 
-    // ── Shared helpers ────────────────────────────────────────────────
-
-    private static Map<String, Object> executeRequest(McpServer server, String jsonBody) {
-        RestRequest req = new RestRequest();
-        req.requestBody = Blob.valueOf(jsonBody);
-        RestResponse res = new RestResponse();
-        server.handleRequest(req, res);
-        if (res.responseBody == null) {
-            return null;
+    @IsTest
+    static void listCacheAndPageSizeAreValidated() {
+        McpServer s = new McpServer('s', '1');
+        Exception caught;
+        try { s.listCache(-1, 'public'); } catch (Exception e) { caught = e; }
+        assertConfigurationError('negative ttl', caught);
+        caught = null;
+        try { s.listCache(null, 'public'); } catch (Exception e) { caught = e; }
+        assertConfigurationError('null ttl', caught);
+        caught = null;
+        try { s.listCache(1, 'shared'); } catch (Exception e) { caught = e; }
+        assertConfigurationError('bad scope', caught);
+        for (Integer bad : new List<Integer>{ 0, 101, -5 }) {
+            caught = null;
+            try { s.pageSize(bad); } catch (Exception e) { caught = e; }
+            assertConfigurationError('pageSize ' + bad, caught);
         }
-        return (Map<String, Object>) JSON.deserializeUntyped(res.responseBody.toString());
-    }
-
-    private static McpServer buildToolServer() {
-        McpServer server = new McpServer();
-        server.registerTool(new TestTool());
-        return server;
-    }
-
-    // ── 1. Initialize response ────────────────────────────────────────
-
-    @IsTest
-    static void testInitializeResponse() {
-        McpServer server = buildToolServer();
-        String json = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        System.assertNotEquals(null, response, 'Response should not be null');
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        System.assertNotEquals(null, result, 'Result should not be null');
-
-        System.assertEquals('2025-11-25', result.get('protocolVersion'),
-            'Protocol version should be 2025-11-25');
-
-        Map<String, Object> capabilities = (Map<String, Object>) result.get('capabilities');
-        System.assertNotEquals(null, capabilities, 'Capabilities should not be null');
-        System.assert(capabilities.containsKey('tools'),
-            'Capabilities should include tools when tools are registered');
-
-        Map<String, Object> serverInfo = (Map<String, Object>) result.get('serverInfo');
-        System.assertNotEquals(null, serverInfo, 'serverInfo should not be null');
-        System.assertEquals('SalesforceMcpServer', serverInfo.get('name'),
-            'Server name should be SalesforceMcpServer');
-        System.assertEquals('1.1.0', serverInfo.get('version'),
-            'Server version should be 1.1.0');
-    }
-
-    // ── 1b. Initialize negotiates older client protocol version ───────
-
-    @IsTest
-    static void testInitializeNegotiatesOlderProtocolVersion() {
-        McpServer server = buildToolServer();
-        String json = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"OldClient","version":"0.14.0"}}}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        System.assertEquals('2024-11-05', result.get('protocolVersion'),
-            'Server should echo back a supported older protocol version');
+        caught = null;
+        try { s.pageSize(null); } catch (Exception e) { caught = e; }
+        assertConfigurationError('null pageSize', caught);
+        s.pageSize(1).pageSize(100).listCache(0, McpServer.CACHE_PRIVATE);
     }
 
     @IsTest
-    static void testInitializeReturnsLatestForUnknownProtocolVersion() {
-        McpServer server = buildToolServer();
-        String json = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"9999-01-01","capabilities":{},"clientInfo":{"name":"FutureClient","version":"99.0"}}}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        System.assertEquals('2025-11-25', result.get('protocolVersion'),
-            'Server should return latest version for unsupported client version');
-    }
-
-    // ── 2. Initialize with no capabilities ────────────────────────────
-
-    @IsTest
-    static void testInitializeWithNoCapabilities() {
-        McpServer server = new McpServer();
-        String json = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"TestClient","version":"1.0.0"}}}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        Map<String, Object> capabilities = (Map<String, Object>) result.get('capabilities');
-        System.assertNotEquals(null, capabilities, 'Capabilities should not be null');
-        System.assert(capabilities.isEmpty(),
-            'Capabilities should be an empty map when nothing is registered');
-    }
-
-    // ── 3. Ping response ──────────────────────────────────────────────
-
-    @IsTest
-    static void testPingResponse() {
-        McpServer server = new McpServer();
-        String json = '{"jsonrpc":"2.0","id":1,"method":"ping"}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        System.assertNotEquals(null, response, 'Ping should return a response');
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        System.assertNotEquals(null, result, 'Ping result should not be null');
-        System.assert(result.isEmpty(), 'Ping result should be an empty object');
-    }
-
-    // ── 4. Notification produces no response ──────────────────────────
-
-    @IsTest
-    static void testNotificationNoResponse() {
-        McpServer server = new McpServer();
-        // Notification: no "id" field
-        String json = '{"jsonrpc":"2.0","method":"notifications/initialized"}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        System.assertEquals(null, response,
-            'Notification should produce no response body');
-    }
-
-    // ── 5. Tools list ─────────────────────────────────────────────────
-
-    @IsTest
-    static void testToolsList() {
-        McpServer server = buildToolServer();
-        String json = '{"jsonrpc":"2.0","id":1,"method":"tools/list"}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        System.assertNotEquals(null, result, 'Result should not be null');
-
-        List<Object> tools = (List<Object>) result.get('tools');
-        System.assertNotEquals(null, tools, 'Tools array should not be null');
-        System.assertEquals(1, tools.size(), 'Should have exactly one tool');
-
-        Map<String, Object> tool = (Map<String, Object>) tools[0];
-        System.assertEquals('test_tool', tool.get('name'),
-            'Tool name should be test_tool');
-        System.assertEquals('A test tool', tool.get('description'),
-            'Tool description should match');
-
-        Map<String, Object> inputSchema = (Map<String, Object>) tool.get('inputSchema');
-        System.assertNotEquals(null, inputSchema, 'inputSchema should not be null');
-        System.assertEquals('object', inputSchema.get('type'),
-            'inputSchema type should be object');
-    }
-
-    // ── 6. Tools list with annotations ────────────────────────────────
-
-    @IsTest
-    static void testToolsListWithAnnotations() {
-        McpServer server = new McpServer();
-        server.registerTool(new AnnotatedTool());
-        String json = '{"jsonrpc":"2.0","id":1,"method":"tools/list"}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        List<Object> tools = (List<Object>) result.get('tools');
-        Map<String, Object> tool = (Map<String, Object>) tools[0];
-
-        Map<String, Object> annotations = (Map<String, Object>) tool.get('annotations');
-        System.assertNotEquals(null, annotations,
-            'Annotations should be present for annotated tool');
-        System.assertEquals(true, annotations.get('readOnlyHint'),
-            'readOnlyHint should be true');
-        System.assertEquals(false, annotations.get('destructiveHint'),
-            'destructiveHint should be false');
-    }
-
-    // ── 7. Tools call success ─────────────────────────────────────────
-
-    @IsTest
-    static void testToolsCallSuccess() {
-        McpServer server = buildToolServer();
-        String json = '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"test_tool","arguments":{"input":"hello"}}}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        System.assertNotEquals(null, result, 'Result should not be null');
-
-        List<Object> content = (List<Object>) result.get('content');
-        System.assertNotEquals(null, content, 'Content should not be null');
-        System.assertEquals(1, content.size(), 'Should have one content block');
-
-        Map<String, Object> textBlock = (Map<String, Object>) content[0];
-        System.assertEquals('text', textBlock.get('type'),
-            'Content type should be text');
-        System.assertEquals('Result: hello', textBlock.get('text'),
-            'Text should be "Result: hello"');
-
-        // isError should be absent or null (success case)
-        Object isError = result.get('isError');
-        System.assert(isError == null || isError == false,
-            'isError should not be true on success');
-    }
-
-    // ── 8. Tools call validation failure ──────────────────────────────
-
-    @IsTest
-    static void testToolsCallValidationFailure() {
-        McpServer server = buildToolServer();
-        // Missing required "input" argument
-        String json = '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"test_tool","arguments":{}}}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        System.assertNotEquals(null, result, 'Result should not be null');
-        System.assertEquals(true, result.get('isError'),
-            'isError should be true when validation fails');
-
-        List<Object> content = (List<Object>) result.get('content');
-        System.assertNotEquals(null, content, 'Content should not be null');
-        Map<String, Object> textBlock = (Map<String, Object>) content[0];
-        System.assert(((String) textBlock.get('text')).contains('input is required'),
-            'Error text should mention "input is required"');
-    }
-
-    // ── 9. Tools call unknown tool ────────────────────────────────────
-
-    @IsTest
-    static void testToolsCallUnknownTool() {
-        McpServer server = buildToolServer();
-        String json = '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"nonexistent","arguments":{}}}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        System.assertNotEquals(null, response, 'Response should not be null');
-        Map<String, Object> error = (Map<String, Object>) response.get('error');
-        System.assertNotEquals(null, error, 'Error should not be null');
-        System.assertEquals(-32602, (Integer) error.get('code'),
-            'Error code should be -32602 (Invalid params) for unknown tool');
-    }
-
-    // ── 10. Tools call exception returns isError ──────────────────────
-
-    @IsTest
-    static void testToolsCallExceptionReturnsIsError() {
-        McpServer server = new McpServer();
-        server.registerTool(new ThrowingTool());
-        String json = '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"throwing_tool","arguments":{}}}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        System.assertNotEquals(null, result, 'Result should not be null');
-        System.assertEquals(true, result.get('isError'),
-            'isError should be true when tool throws an exception');
-
-        List<Object> content = (List<Object>) result.get('content');
-        System.assertNotEquals(null, content, 'Content should not be null');
-        Map<String, Object> textBlock = (Map<String, Object>) content[0];
-        System.assert(((String) textBlock.get('text')).contains('Something went wrong'),
-            'Error text should contain the exception message');
-    }
-
-    // ── 11. Duplicate tool registration ───────────────────────────────
-
-    @IsTest
-    static void testDuplicateToolRegistration() {
-        McpServer server = new McpServer();
-        server.registerTool(new TestTool());
-
-        Boolean exceptionThrown = false;
-        try {
-            server.registerTool(new TestTool());
-        } catch (McpExceptions.DuplicateRegistrationException e) {
-            exceptionThrown = true;
+    static void byteLimitsAreBoundedByThePlatformCeiling() {
+        McpServer s = new McpServer('s', '1');
+        for (Integer bad : new List<Integer>{ 0, 1023, 6000001, -1 }) {
+            Exception caught;
+            try { s.maxRequestBytes(bad); } catch (Exception e) { caught = e; }
+            assertConfigurationError('maxRequestBytes ' + bad, caught);
+            caught = null;
+            try { s.maxResponseBytes(bad); } catch (Exception e) { caught = e; }
+            assertConfigurationError('maxResponseBytes ' + bad, caught);
         }
-
-        System.assert(exceptionThrown,
-            'Registering two tools with the same name should throw DuplicateRegistrationException');
+        Exception caught;
+        try { s.maxRequestBytes(null); } catch (Exception e) { caught = e; }
+        assertConfigurationError('null', caught);
+        s.maxRequestBytes(1024).maxRequestBytes(6000000).maxResponseBytes(1024).maxResponseBytes(6000000);
     }
 
-    // ── 12. Method not found ──────────────────────────────────────────
-
     @IsTest
-    static void testMethodNotFound() {
-        McpServer server = new McpServer();
-        String json = '{"jsonrpc":"2.0","id":1,"method":"unknown/method"}';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        System.assertNotEquals(null, response, 'Response should not be null');
-        Map<String, Object> error = (Map<String, Object>) response.get('error');
-        System.assertNotEquals(null, error, 'Error should not be null');
-        System.assertEquals(-32601, (Integer) error.get('code'),
-            'Error code should be -32601 (Method not found)');
+    static void duplicateAndNullRegistrationsAreRejected() {
+        McpServer s = McpTestKit.fullServer();
+        List<String> failures = new List<String>();
+        try { s.tool(new McpTestKit.EchoTool()); failures.add('tool'); } catch (McpConfigurationException e) { }
+        try { s.resource(new McpTestKit.OrgInfoResource()); failures.add('resource'); } catch (McpConfigurationException e) { }
+        try { s.resourceTemplate(new McpTestKit.AccountTemplate()); failures.add('template'); } catch (McpConfigurationException e) { }
+        try { s.prompt(new McpTestKit.GreetPrompt()); failures.add('prompt'); } catch (McpConfigurationException e) { }
+        try { s.tool(null); failures.add('null tool'); } catch (McpConfigurationException e) { }
+        try { s.resource(null); failures.add('null resource'); } catch (McpConfigurationException e) { }
+        try { s.resourceTemplate(null); failures.add('null template'); } catch (McpConfigurationException e) { }
+        try { s.prompt(null); failures.add('null prompt'); } catch (McpConfigurationException e) { }
+        try { s.allowOrigin(' '); failures.add('blank origin'); } catch (McpConfigurationException e) { }
+        Assert.areEqual(new List<String>(), failures);
     }
 
-    // ── 13. Malformed JSON ────────────────────────────────────────────
-
     @IsTest
-    static void testMalformedJson() {
-        McpServer server = new McpServer();
-        String json = '{this is not valid json!!!';
-
-        Map<String, Object> response = executeRequest(server, json);
-
-        System.assertNotEquals(null, response, 'Response should not be null');
-        Map<String, Object> error = (Map<String, Object>) response.get('error');
-        System.assertNotEquals(null, error, 'Error should not be null');
-        System.assertEquals(-32700, (Integer) error.get('code'),
-            'Error code should be -32700 (Parse error)');
+    static void toolAndPromptNamesAreValidated() {
+        for (String bad : new List<String>{ '', 'has space', 'ünïcode', 'a/b', 'x'.repeat(129) }) {
+            Exception caught;
+            try { new McpTestKit.ModeTool(bad, 'ok'); } catch (Exception e) { caught = e; }
+            assertConfigurationError('tool name ' + bad, caught);
+        }
+        Exception caught;
+        try { new McpTestKit.ModeTool(null, 'ok'); } catch (Exception e) { caught = e; }
+        assertConfigurationError('null tool name', caught);
+        new McpTestKit.ModeTool('a.b-c_D9', 'ok');
+        new McpTestKit.ModeTool('x'.repeat(128), 'ok');
     }
 
-    // ── 14. Exception mapper maps McpInvalidParamsException ───────────
+    @IsTest
+    static void skipOutputValidationIsChainable() {
+        McpServer s = new McpServer('s', '1').skipOutputValidation().tool(new McpTestKit.EchoTool());
+        Assert.areEqual(200, McpTestKit.modern(s, 'tools/list', null).status);
+    }
 
     @IsTest
-    static void testExceptionMapperMcpInvalidParams() {
-        McpJsonRpcExceptionMapper mapper = new McpJsonRpcExceptionMapper();
-        McpInvalidParamsException ex = new McpInvalidParamsException('bad param');
-
-        JsonRpcError error = mapper.mapException(ex);
-
-        System.assertEquals(-32602, error.code,
-            'McpInvalidParamsException should map to -32602');
-        System.assertEquals('bad param', error.message,
-            'Error message should preserve the exception message');
+    static void iconAndMetadataSettersValidate() {
+        List<String> failures = new List<String>();
+        try { new McpIcon('http://insecure.example/i.png'); failures.add('http'); } catch (McpConfigurationException e) { }
+        try { new McpIcon('javascript:alert(1)'); failures.add('js'); } catch (McpConfigurationException e) { }
+        try { new McpIcon(' '); failures.add('blank'); } catch (McpConfigurationException e) { }
+        try { new McpIcon('https://x.example/i.png').theme('blue'); failures.add('theme'); } catch (McpConfigurationException e) { }
+        try { new McpAnnotations().audience(new List<String>{ 'robot' }); failures.add('audience'); } catch (McpConfigurationException e) { }
+        try { new McpIcon('https://x.example/i.png').theme('LIGHT'); failures.add('theme case'); } catch (McpConfigurationException e) { }
+        try { new McpIcon('https://x.example/i.png').theme(null); failures.add('theme null'); } catch (McpConfigurationException e) { }
+        try { new McpAnnotations().audience(new List<String>{ 'USER' }); failures.add('audience case'); } catch (McpConfigurationException e) { }
+        try { new McpAnnotations().audience(new List<String>{ 'user', 'Assistant' }); failures.add('audience case 2'); } catch (McpConfigurationException e) { }
+        try { new McpServer('s', '1').listCache(1, 'PUBLIC'); failures.add('scope case'); } catch (McpConfigurationException e) { }
+        try { new McpServer('s', '1').listCache(1, 'Private'); failures.add('scope case 2'); } catch (McpConfigurationException e) { }
+        try { McpResourceResult.of(null).cache(1, 'PUBLIC'); failures.add('result scope case'); } catch (McpConfigurationException e) { }
+        try { new McpAnnotations().priority(1.5); failures.add('priority hi'); } catch (McpConfigurationException e) { }
+        try { new McpAnnotations().priority(-0.1); failures.add('priority lo'); } catch (McpConfigurationException e) { }
+        Assert.areEqual(new List<String>(), failures);
+        new McpIcon('HTTPS://x.example/i.png').theme('dark');
+        new McpIcon('data:image/png;base64,AAAA');
+        Map<String, Object> annotations = new McpAnnotations().audience(new List<String>{ 'user', 'assistant' }).priority(0).lastModified('2026-01-01T00:00:00Z').toMap();
+        Assert.areEqual(3, annotations.size());
+        Assert.areEqual(0, new McpAnnotations().toMap().size());
+        Map<String, Object> toolAnnotations = new McpToolAnnotations().title('T').readOnly(true).destructive(false).idempotent(true).openWorld(false).toMap();
+        Assert.areEqual(5, toolAnnotations.size());
+        Assert.areEqual(false, toolAnnotations.get('destructiveHint'));
+        Assert.areEqual(0, new McpToolAnnotations().toMap().size());
     }
 }

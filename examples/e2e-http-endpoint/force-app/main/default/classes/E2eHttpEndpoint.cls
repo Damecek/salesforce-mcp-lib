@@ -1,14 +1,17 @@
 /**
- * Full MCP endpoint demonstrating tools, resources, and prompts.
+ * Full MCP endpoint demonstrating tools, resources, resource templates and prompts.
  */
 @RestResource(urlMapping='/mcp/e2e')
-global inherited sharing class E2eHttpEndpoint {
+global with sharing class E2eHttpEndpoint {
     @HttpPost
-    global static void handlePost() {
-        McpServer server = new McpServer();
-        server.registerTool(new ExampleQueryTool());
-        server.registerResource(new ExampleOrgResource());
-        server.registerPrompt(new ExampleSummarizePrompt());
-        server.handleRequest(RestContext.request, RestContext.response);
+    global static void post() {
+        new McpServer('e2e-example', '1.0.0')
+            .title('End-to-end example')
+            .instructions('Call query_accounts to find accounts, then read one through salesforce://account/{id}.')
+            .tool(new ExampleQueryTool())
+            .resource(new ExampleOrgResource())
+            .resourceTemplate(new ExampleAccountTemplate())
+            .prompt(new ExampleSummarizePrompt())
+            .handle(RestContext.request, RestContext.response);
     }
 }

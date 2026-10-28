@@ -1,21 +1,17 @@
 /**
- * Example resource exposing org information.
+ * Example resource exposing basic org information. Cached by clients for one minute.
  */
-public with sharing class ExampleOrgResource extends McpResourceDefinition {
+public with sharing class ExampleOrgResource extends McpResource {
     public ExampleOrgResource() {
-        this.uri = 'salesforce://org/info';
-        this.name = 'Org Information';
-        this.description = 'Basic information about the connected Salesforce org';
-        this.mimeType = 'application/json';
+        super('salesforce://org/info', 'org_info');
+        title('Org information')
+            .description('Basic information about the connected Salesforce org')
+            .mimeType('application/json');
     }
-    public override McpResourceResult read() {
-        Organization org = [SELECT Name, OrganizationType, IsSandbox FROM Organization LIMIT 1];
-        McpResourceResult result = new McpResourceResult();
-        McpResourceContentItem item = new McpResourceContentItem();
-        item.uri = this.uri;
-        item.mimeType = this.mimeType;
-        item.text = JSON.serialize(org);
-        result.contents = new List<McpResourceContentItem>{ item };
-        return result;
+
+    public override McpResourceResult read(McpRequest request) {
+        Organization org = [SELECT Name, OrganizationType, IsSandbox FROM Organization WITH USER_MODE LIMIT 1];
+        return McpResourceResult.of(McpResourceContents.text(getUri(), 'application/json', JSON.serialize(org)))
+            .cache(60000, McpServer.CACHE_PRIVATE);
     }
 }

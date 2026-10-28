@@ -6,6 +6,7 @@
 
 import process from 'node:process';
 import type { AuthConfig } from './types.js';
+import { assertSecureTransport } from './urlPolicy.js';
 
 /** Map from CLI flag name to AuthConfig property name. */
 const FLAG_MAP: Record<string, keyof AuthConfig> = {
@@ -17,6 +18,8 @@ const FLAG_MAP: Record<string, keyof AuthConfig> = {
   '--log-level': 'logLevel',
   '--headless': 'headless',
   '--callback-port': 'callbackPort',
+  '--request-timeout-ms': 'requestTimeoutMs',
+  '--max-concurrency': 'maxConcurrency',
 };
 
 /** Map from env-var name to AuthConfig property name. */
@@ -28,7 +31,16 @@ const ENV_MAP: Record<string, keyof AuthConfig> = {
   SF_LOG_LEVEL: 'logLevel',
   SF_HEADLESS: 'headless',
   SF_CALLBACK_PORT: 'callbackPort',
+  SF_REQUEST_TIMEOUT_MS: 'requestTimeoutMs',
+  SF_MAX_CONCURRENCY: 'maxConcurrency',
 };
+
+/** Numeric keys parsed strictly (digits only); invalid input becomes NaN and fails validation. */
+const STRICT_INT_KEYS = new Set<keyof AuthConfig>(['requestTimeoutMs', 'maxConcurrency']);
+
+function parseStrictInt(value: string): number {
+  return /^\d+$/.test(value) ? Number(value) : NaN;
+}
 
 /** Boolean flags that don't take a value argument. */
 const BOOLEAN_FLAGS = new Set<keyof AuthConfig>(['headless']);
@@ -65,6 +77,11 @@ MCP Server Options:
   --endpoint       / SF_ENDPOINT        Apex REST endpoint path (required)
   --log-level      / SF_LOG_LEVEL       Log level (debug|info|warn|error) [default: info]
   --callback-port  / SF_CALLBACK_PORT   OAuth callback port [default: 13338]
+  --request-timeout-ms / SF_REQUEST_TIMEOUT_MS
+                                        Deadline per forwarded request in ms, covering
+                                        authentication and retry (1000-600000) [default: 120000]
+  --max-concurrency / SF_MAX_CONCURRENCY
+                                        Concurrent requests to Salesforce (1-25) [default: 4]
 
 Login Subcommand Options:
   --instance-url   / SF_INSTANCE_URL    Salesforce instance URL (required)
@@ -100,6 +117,8 @@ function parseRaw(): Partial<AuthConfig> {
           value === 'true' || value === '1';
       } else if (configKey === 'callbackPort') {
         (partial as Record<string, unknown>)[configKey] = parseInt(value, 10);
+      } else if (STRICT_INT_KEYS.has(configKey)) {
+        (partial as Record<string, unknown>)[configKey] = parseStrictInt(value);
       } else {
         (partial as Record<string, unknown>)[configKey] = value;
       }
@@ -129,6 +148,8 @@ function parseRaw(): Partial<AuthConfig> {
             value,
             10
           );
+        } else if (STRICT_INT_KEYS.has(configKey)) {
+          (partial as Record<string, unknown>)[configKey] = parseStrictInt(value);
         } else {
           (partial as Record<string, unknown>)[configKey] = value;
         }
@@ -139,14 +160,51 @@ function parseRaw(): Partial<AuthConfig> {
 
   // 3. Validate values that were provided.
   if (partial.instanceUrl) {
+    let parsedUrl: URL | undefined;
     try {
-      new URL(partial.instanceUrl);
+      parsedUrl = new URL(partial.instanceUrl);
     } catch {
       process.stderr.write(
-        `Error: --instance-url is not a valid URL: ${partial.instanceUrl}\n`
+        `Error: --instance-url is not a valid URL\n`
       );
       process.exit(1);
     }
+    if (parsedUrl) {
+      try {
+        assertSecureTransport(parsedUrl, '--instance-url');
+      } catch (err: unknown) {
+        // The message never contains the URL, so credentials in it are not echoed.
+        process.stderr.write(`Error: ${(err as Error).message}\n`);
+        process.exit(1);
+      }
+    }
+  }
+
+  if (partial.endpoint && !/^\/(?!\/)/.test(partial.endpoint)) {
+    process.stderr.write(
+      `Error: --endpoint must be a path starting with a single "/" (for example /services/apexrest/mcp)\n`
+    );
+    process.exit(1);
+  }
+
+  if (
+    partial.requestTimeoutMs !== undefined &&
+    !(partial.requestTimeoutMs >= 1000 && partial.requestTimeoutMs <= 600000)
+  ) {
+    process.stderr.write(
+      `Error: --request-timeout-ms must be an integer between 1000 and 600000\n`
+    );
+    process.exit(1);
+  }
+
+  if (
+    partial.maxConcurrency !== undefined &&
+    !(partial.maxConcurrency >= 1 && partial.maxConcurrency <= 25)
+  ) {
+    process.stderr.write(
+      `Error: --max-concurrency must be an integer between 1 and 25\n`
+    );
+    process.exit(1);
   }
 
   if (partial.callbackPort !== undefined) {
@@ -206,6 +264,8 @@ export function parseConfig(): AuthConfig {
     logLevel: partial.logLevel ?? 'info',
     headless: partial.headless ?? false,
     callbackPort: partial.callbackPort ?? 13338,
+    requestTimeoutMs: partial.requestTimeoutMs ?? 120000,
+    maxConcurrency: partial.maxConcurrency ?? 4,
   };
 }
 

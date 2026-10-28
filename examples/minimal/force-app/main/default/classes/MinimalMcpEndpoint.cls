@@ -2,11 +2,11 @@
  * Minimal @RestResource endpoint exposing a single MCP tool.
  */
 @RestResource(urlMapping='/mcp/minimal')
-global inherited sharing class MinimalMcpEndpoint {
+global with sharing class MinimalMcpEndpoint {
     @HttpPost
-    global static void handlePost() {
-        McpServer server = new McpServer();
-        server.registerTool(new MinimalTool());
-        server.handleRequest(RestContext.request, RestContext.response);
+    global static void post() {
+        new McpServer('minimal-example', '1.0.0')
+            .tool(new MinimalTool())
+            .handle(RestContext.request, RestContext.response);
     }
 }

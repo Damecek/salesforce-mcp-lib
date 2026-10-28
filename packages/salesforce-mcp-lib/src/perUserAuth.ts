@@ -10,8 +10,6 @@
  */
 
 import crypto from "node:crypto";
-import https from "node:https";
-import http from "node:http";
 import { execFile } from "node:child_process";
 import { createInterface } from "node:readline";
 import { URL, URLSearchParams } from "node:url";
@@ -22,10 +20,12 @@ import {
   InvalidCredentialsError,
   InsufficientAccessError,
   ConsentDeniedError,
-  ConnectivityError,
   SessionExpiredError,
   SalesforceAuthError,
 } from "./errors.js";
+import { postForm } from "./authHttp.js";
+import type { PostFormOptions } from "./authHttp.js";
+import { safeRemoteText } from "./redact.js";
 import { startCallbackServer } from "./callbackServer.js";
 
 // ---------------------------------------------------------------------------
@@ -78,6 +78,7 @@ export async function exchangeCodeForTokens(
   redirectUri: string,
   codeVerifier: string,
   clientSecret?: string,
+  httpOptions: PostFormOptions = {},
 ): Promise<OAuthTokenResponse> {
   const params: Record<string, string> = {
     grant_type: "authorization_code",
@@ -93,7 +94,7 @@ export async function exchangeCodeForTokens(
   const body = new URLSearchParams(params).toString();
 
   const tokenUrl = new URL("/services/oauth2/token", instanceUrl);
-  const responseBody = await postForm(tokenUrl, body);
+  const responseBody = await postForm(tokenUrl, body, httpOptions);
   return parseTokenResponse(responseBody, instanceUrl);
 }
 
@@ -113,6 +114,7 @@ export async function refreshAccessToken(
   clientId: string,
   refreshToken: string,
   clientSecret?: string,
+  httpOptions: PostFormOptions = {},
 ): Promise<OAuthTokenResponse> {
   const params: Record<string, string> = {
     grant_type: "refresh_token",
@@ -126,7 +128,7 @@ export async function refreshAccessToken(
 
   const tokenUrl = new URL("/services/oauth2/token", instanceUrl);
   try {
-    const responseBody = await postForm(tokenUrl, body);
+    const responseBody = await postForm(tokenUrl, body, httpOptions);
     return parseTokenResponse(responseBody, instanceUrl);
   } catch (err) {
     // invalid_grant during refresh means the refresh token is expired/revoked.
@@ -386,17 +388,15 @@ function parseTokenResponse(
   try {
     parsed = JSON.parse(responseBody) as Record<string, unknown>;
   } catch {
-    throw new SalesforceAuthError(
-      `OAuth response is not valid JSON: ${responseBody.slice(0, 200)}`,
-    );
+    throw new SalesforceAuthError("OAuth response is not valid JSON");
   }
 
   // Map Salesforce error codes to specific error subclasses (T020).
   if (typeof parsed["error"] === "string") {
-    const errorCode = parsed["error"] as string;
+    const errorCode = safeRemoteText(parsed["error"] as string);
     const desc =
       typeof parsed["error_description"] === "string"
-        ? (parsed["error_description"] as string)
+        ? safeRemoteText(parsed["error_description"] as string)
         : "unknown";
 
     throw mapOAuthError(errorCode, desc);
@@ -457,45 +457,4 @@ function mapOAuthError(errorCode: string, description: string): Error {
         `OAuth error: ${errorCode} — ${description}`,
       );
   }
-}
-
-/**
- * Low-level HTTPS/HTTP POST with application/x-www-form-urlencoded body.
- * Wraps network errors in ConnectivityError (T020).
- */
-function postForm(url: URL, body: string): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const transport = url.protocol === "https:" ? https : http;
-
-    const req = transport.request(
-      url,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Content-Length": Buffer.byteLength(body).toString(),
-          Accept: "application/json",
-        },
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on("data", (chunk: Buffer) => chunks.push(chunk));
-        res.on("end", () => {
-          resolve(Buffer.concat(chunks).toString("utf-8"));
-        });
-      },
-    );
-
-    req.on("error", (err: Error) => {
-      reject(
-        new ConnectivityError(
-          `Cannot reach ${url.origin}. Check your network connection and instance URL.`,
-          err,
-        ),
-      );
-    });
-
-    req.write(body);
-    req.end();
-  });
 }

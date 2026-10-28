@@ -4,9 +4,9 @@ set -euo pipefail
 
 echo "Running Apex tests..."
 sf apex run test \
-    --synchronous \
+    --test-level RunLocalTests \
     --code-coverage \
     --result-format human \
-    --wait 10
+    --wait 20
 
 echo "Apex tests complete."

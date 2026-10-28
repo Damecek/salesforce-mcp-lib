@@ -1,10 +1,9 @@
 {
   "package": "SalesforceMcpLib",
   "packageId": "0HodL0000002PQXSA2",
-  "versionNumber": "1.1.0.NEXT",
-  "versionName": "MCP 2025-11-25 Support",
-  "versionDescription": "Complete MCP server framework for Salesforce Apex with tools, resources, and prompts support",
-  "ancestorVersion": "HIGHEST",
+  "versionNumber": "2.0.0.NEXT",
+  "versionName": "MCP 2026-07-28 and 2025-11-25",
+  "versionDescription": "Apex MCP server framework with tools, resources, resource templates, prompts and completions",
   "path": "force-app",
   "definitionFile": "config/project-scratch-def.json",
   "codecoverage": true

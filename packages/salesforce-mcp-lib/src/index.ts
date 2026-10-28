@@ -27,6 +27,9 @@ import {
   SessionExpiredError,
 } from "./errors.js";
 
+/** How long shutdown waits for stdout to flush. */
+const STDOUT_FLUSH_TIMEOUT_MS = 5000;
+
 /**
  * Redact known secrets from a string so they never appear in logs.
  * Replaces any occurrence of secret values with "****".
@@ -163,6 +166,8 @@ async function runServer(): Promise<void> {
   }
   logger.info(`  endpoint     : ${config.endpoint}`);
   logger.info(`  log-level    : ${config.logLevel ?? "info"}`);
+  logger.info(`  timeout-ms   : ${config.requestTimeoutMs}`);
+  logger.info(`  concurrency  : ${config.maxConcurrency}`);
 
   // 3. Create auth strategy (may detect stored per-user tokens).
   const strategy = createAuthStrategy(config, logger, {
@@ -256,7 +261,28 @@ async function runServer(): Promise<void> {
 
   // 6. Start stdio listener — forward every inbound message through the bridge.
   logger.info("Listening on stdin for JSON-RPC messages");
-  startStdioListener((message) => bridge.forward(message), logger);
+  await startStdioListener({
+    forward: (message, signal) => bridge.forward(message, signal),
+    logger,
+    maxConcurrency: config.maxConcurrency,
+  });
+  // Flush stdout before exiting so the last response is not lost. The write
+  // callback also fires on a closed pipe, and a client that stopped reading
+  // cannot hold the exit longer than the timeout.
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, STDOUT_FLUSH_TIMEOUT_MS);
+    try {
+      process.stdout.write("", () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    } catch {
+      clearTimeout(timer);
+      resolve();
+    }
+  });
+  logger.info("stdin closed — shutting down");
+  process.exit(0);
 }
 
 // ---------------------------------------------------------------------------

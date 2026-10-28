@@ -15,7 +15,7 @@ import { ClientCredentialsStrategy } from "./oauth.js";
 import { performLogin, refreshAccessToken } from "./perUserAuth.js";
 import { loadTokens, saveTokens, deleteTokens } from "./tokenStore.js";
 import type { LoadTokensResult } from "./tokenStore.js";
-import { LoginRequiredError, SessionExpiredError } from "./errors.js";
+import { LoginRequiredError, SalesforceAuthError, SessionExpiredError } from "./errors.js";
 import type { BridgeConfig } from "./types.js";
 import { buildPerUserTokenData } from "./perUserTokenData.js";
 
@@ -25,8 +25,13 @@ export interface AuthStrategy {
   getAccessToken(): Promise<string>;
   /** Get the Salesforce instance URL. */
   getInstanceUrl(): string | null;
-  /** Attempt to re-authenticate (called on 401). */
-  reauthenticate(): Promise<OAuthTokenResponse>;
+  /**
+   * Attempt to re-authenticate (called on 401). `failedAccessToken` is the
+   * token the rejected request carried: when a newer token is already cached,
+   * the 401 is stale and the current credentials are returned without a new
+   * token request. Concurrent calls share one request.
+   */
+  reauthenticate(failedAccessToken?: string): Promise<OAuthTokenResponse>;
   /** The auth mode this strategy implements. */
   readonly mode: AuthMode;
 }
@@ -50,6 +55,13 @@ export interface CreateAuthStrategyOptions {
   loginHandler?: typeof performLogin;
 }
 
+/** Internal signal: no token can be obtained without an interactive login. */
+class LoginNeeded extends Error {}
+
+function describeError(err: unknown): string {
+  return err instanceof SalesforceAuthError ? err.message : err instanceof Error ? err.name : "unknown error";
+}
+
 // ---------------------------------------------------------------------------
 // PerUserAuthStrategy (T010 + T015)
 // ---------------------------------------------------------------------------
@@ -67,6 +79,10 @@ export class PerUserAuthStrategy implements AuthStrategy {
   private cachedToken: string | null = null;
   private cachedInstanceUrl: string | null = null;
   private cachedRefreshToken: string | null = null;
+  /** Latest successful token response; returned to stale 401 callers. */
+  private current: OAuthTokenResponse | null = null;
+  /** The one refresh or login in progress; every waiter shares it. */
+  private inflight: Promise<OAuthTokenResponse> | null = null;
   private _tokensLoaded = false;
 
   constructor(
@@ -120,12 +136,65 @@ export class PerUserAuthStrategy implements AuthStrategy {
   }
 
   async getAccessToken(): Promise<string> {
-    // Return cached token if available.
     if (this.cachedToken) {
       return this.cachedToken;
     }
+    try {
+      return (await this.acquireOnce()).access_token;
+    } catch (err) {
+      if (err instanceof LoginNeeded) {
+        throw new LoginRequiredError(this.buildLoginRequiredMessage());
+      }
+      throw err;
+    }
+  }
 
-    // Try to refresh if we have a refresh token.
+  getInstanceUrl(): string | null {
+    return this.cachedInstanceUrl ?? this.config.instanceUrl;
+  }
+
+  async reauthenticate(failedAccessToken?: string): Promise<OAuthTokenResponse> {
+    // A 401 for a token that was already replaced must not trigger (or wipe) anything.
+    if (
+      failedAccessToken !== undefined &&
+      this.cachedToken !== null &&
+      this.cachedToken !== failedAccessToken &&
+      this.current !== null
+    ) {
+      return this.current;
+    }
+    // Requests that start while the refresh runs wait for it instead of reusing the rejected token.
+    if (failedAccessToken !== undefined && this.cachedToken === failedAccessToken) {
+      this.cachedToken = null;
+    }
+    try {
+      return await this.acquireOnce();
+    } catch (err) {
+      if (err instanceof LoginNeeded) {
+        throw new SessionExpiredError(this.buildSessionExpiredMessage());
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Refresh (or log in) once at a time. getAccessToken and reauthenticate share
+   * this promise, so a rotating refresh token is redeemed by one request only.
+   * The request has its own deadline, so a waiter that stops waiting does not
+   * abort it for the others.
+   */
+  private acquireOnce(): Promise<OAuthTokenResponse> {
+    if (this.inflight) return this.inflight;
+    const attempt = this.acquire();
+    this.inflight = attempt;
+    const release = (): void => {
+      if (this.inflight === attempt) this.inflight = null;
+    };
+    attempt.then(release, release);
+    return attempt;
+  }
+
+  private async acquire(): Promise<OAuthTokenResponse> {
     if (this.cachedRefreshToken) {
       try {
         this.logger.info("Refreshing access token...");
@@ -134,90 +203,39 @@ export class PerUserAuthStrategy implements AuthStrategy {
           this.config.clientId,
           this.cachedRefreshToken,
           this.config.clientSecret,
+          { timeoutMs: this.config.authTimeoutMs },
         );
         this.updateCachedTokens(response);
         this.logger.info(
           `Token refreshed successfully (identity: ${response.id})`,
         );
-        return response.access_token;
+        return response;
       } catch (err) {
         if (err instanceof SessionExpiredError) {
-          // Refresh token is invalid — fall through to interactive login.
+          // Refresh token is invalid. Only this single flight deletes the
+          // stored tokens, so a stale failure cannot wipe newly issued ones.
           this.logger.warn(
             "Refresh token expired or revoked — stored tokens cleared, will re-login",
           );
           deleteTokens(this.config.instanceUrl, this.config.clientId);
           this.clearCache();
-          if (!this.allowInteractiveLogin) {
-            throw new LoginRequiredError(this.buildLoginRequiredMessage());
-          }
+          if (!this.allowInteractiveLogin) throw new LoginNeeded();
         } else if (!this.allowInteractiveLogin) {
           throw err;
         }
-        // Other errors — try login.
-        this.logger.warn(
-          `Token refresh failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
+        this.logger.warn(`Token refresh failed: ${describeError(err)}`);
       }
     }
 
-    // No cached token and no refresh token — perform interactive login.
-    // Opens browser for OAuth, waits for callback. Does not require stdin.
-    if (!this.allowInteractiveLogin) {
-      throw new LoginRequiredError(this.buildLoginRequiredMessage());
-    }
-    this.logger.info("No stored credentials — starting browser login flow...");
-    const response = await this.loginHandler(this.config, this.logger);
-    this.updateCachedTokens(response);
-    return response.access_token;
-  }
-
-  getInstanceUrl(): string | null {
-    return this.cachedInstanceUrl ?? this.config.instanceUrl;
-  }
-
-  async reauthenticate(): Promise<OAuthTokenResponse> {
-    // T015: Try refresh first, fall back to full login.
-    if (this.cachedRefreshToken) {
-      try {
-        this.logger.info("Attempting token refresh for re-authentication...");
-        const response = await refreshAccessToken(
-          this.config.instanceUrl,
-          this.config.clientId,
-          this.cachedRefreshToken,
-          this.config.clientSecret,
-        );
-        this.updateCachedTokens(response);
-        this.logger.info("Re-authentication via refresh succeeded");
-        return response;
-      } catch (err) {
-        this.logger.warn(
-          `Refresh failed during re-auth: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        // T025: Clear stored tokens on refresh failure (mid-session deactivation).
-        if (err instanceof SessionExpiredError) {
-          deleteTokens(this.config.instanceUrl, this.config.clientId);
-          this.clearCache();
-          if (!this.allowInteractiveLogin) {
-            throw new SessionExpiredError(this.buildSessionExpiredMessage());
-          }
-        } else if (!this.allowInteractiveLogin) {
-          throw err;
-        }
-      }
-    }
-
-    // Fall back to full login.
-    if (!this.allowInteractiveLogin) {
-      throw new SessionExpiredError(this.buildSessionExpiredMessage());
-    }
-    this.logger.info("Performing full re-authentication via login flow...");
+    if (!this.allowInteractiveLogin) throw new LoginNeeded();
+    this.logger.info("No usable stored credentials — starting browser login flow...");
     const response = await this.loginHandler(this.config, this.logger);
     this.updateCachedTokens(response);
     return response;
   }
 
   private updateCachedTokens(response: OAuthTokenResponse): void {
+    this.current = response;
     this.cachedToken = response.access_token;
     this.cachedInstanceUrl = response.instance_url;
 
@@ -237,15 +255,18 @@ export class PerUserAuthStrategy implements AuthStrategy {
     return this.cachedRefreshToken;
   }
 
-  /** Clear all cached token state. */
-  invalidateToken(): void {
-    this.cachedToken = null;
+  /** Drop the cached access token, but only if it is still `failedAccessToken` (when given). */
+  invalidateToken(failedAccessToken?: string): void {
+    if (failedAccessToken === undefined || this.cachedToken === failedAccessToken) {
+      this.cachedToken = null;
+    }
   }
 
   private clearCache(): void {
     this.cachedToken = null;
     this.cachedInstanceUrl = null;
     this.cachedRefreshToken = null;
+    this.current = null;
     this._tokensLoaded = false;
   }
 
@@ -299,6 +320,7 @@ export function createAuthStrategy(
       clientSecret: config.clientSecret!,
       endpoint: config.endpoint,
       logLevel: config.logLevel,
+      authTimeoutMs: config.authTimeoutMs,
     };
     return new ClientCredentialsStrategy(bridgeConfig, logger);
   }

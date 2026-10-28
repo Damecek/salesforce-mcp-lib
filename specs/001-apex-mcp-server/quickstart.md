@@ -1,5 +1,7 @@
 # Quickstart: MCP Server Framework for Salesforce Apex
 
+> **Historical (1.x).** This quickstart describes the removed 1.x API (`McpToolDefinition`, `registerTool`, `handleRequest`). See the root README for 2.0.0.
+
 **Feature**: 001-apex-mcp-server | **Date**: 2026-03-30
 
 This guide walks a Salesforce developer through installing the package, implementing their first MCP tool, and connecting an AI agent — targeting under 30 minutes (SC-001).

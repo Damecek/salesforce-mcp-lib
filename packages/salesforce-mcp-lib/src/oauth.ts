@@ -5,15 +5,11 @@
  * T021 — improved error classification with specific error subclasses.
  */
 
-import https from "node:https";
-import http from "node:http";
 import { URL } from "node:url";
 import type { BridgeConfig, OAuthTokenResponse } from "./types.js";
-import {
-  SalesforceAuthError,
-  InvalidCredentialsError,
-  ConnectivityError,
-} from "./errors.js";
+import { SalesforceAuthError, InvalidCredentialsError } from "./errors.js";
+import { postForm } from "./authHttp.js";
+import { safeRemoteText } from "./redact.js";
 import type { AuthStrategy } from "./authStrategy.js";
 import type { BridgeLogger } from "./mcpBridge.js";
 
@@ -40,23 +36,23 @@ export async function authenticate(
     client_secret: config.clientSecret,
   }).toString();
 
-  const responseBody = await postForm(tokenUrl, body);
+  const responseBody = await postForm(tokenUrl, body, {
+    timeoutMs: config.authTimeoutMs,
+  });
 
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(responseBody) as Record<string, unknown>;
   } catch {
-    throw new SalesforceAuthError(
-      `OAuth response is not valid JSON: ${responseBody.slice(0, 200)}`,
-    );
+    throw new SalesforceAuthError("OAuth response is not valid JSON");
   }
 
   if (typeof parsed["error"] === "string") {
     const desc =
       typeof parsed["error_description"] === "string"
-        ? parsed["error_description"]
+        ? safeRemoteText(parsed["error_description"])
         : "unknown";
-    const errorCode = parsed["error"] as string;
+    const errorCode = safeRemoteText(parsed["error"] as string);
 
     // T021: Use specific error subclasses instead of generic SalesforceAuthError.
     if (
@@ -119,6 +115,9 @@ export class ClientCredentialsStrategy implements AuthStrategy {
   readonly mode = "client_credentials" as const;
   private readonly config: BridgeConfig;
   private readonly logger: BridgeLogger;
+  /** The one token request in progress; every waiter shares it. */
+  private inflight: Promise<OAuthTokenResponse> | null = null;
+  private current: OAuthTokenResponse | null = null;
 
   constructor(config: BridgeConfig, logger: BridgeLogger) {
     this.config = config;
@@ -129,9 +128,8 @@ export class ClientCredentialsStrategy implements AuthStrategy {
     const token = getToken();
     if (token) return token;
 
-    // No cached token — authenticate.
-    this.logger.info("Authenticating with client credentials...");
-    const response = await authenticate(this.config);
+    // No cached token — authenticate (joins a request already in flight).
+    const response = await this.authenticateOnce("Authenticating with client credentials...");
     return response.access_token;
   }
 
@@ -139,58 +137,35 @@ export class ClientCredentialsStrategy implements AuthStrategy {
     return getInstanceUrl() ?? this.config.instanceUrl;
   }
 
-  async reauthenticate(): Promise<OAuthTokenResponse> {
-    this.logger.info("Re-authenticating with client credentials...");
-    return authenticate(this.config);
+  /**
+   * @param failedAccessToken The token that just got a 401. When a newer token
+   *   is already cached, the 401 is stale and no new request is made.
+   */
+  async reauthenticate(failedAccessToken?: string): Promise<OAuthTokenResponse> {
+    const token = getToken();
+    if (
+      failedAccessToken !== undefined &&
+      token !== null &&
+      token !== failedAccessToken &&
+      this.current?.access_token === token
+    ) {
+      return this.current;
+    }
+    return this.authenticateOnce("Re-authenticating with client credentials...");
   }
-}
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Low-level HTTPS/HTTP POST with application/x-www-form-urlencoded body.
- * Uses node:https or node:http based on the URL protocol.
- * T021: Wraps network errors in ConnectivityError.
- */
-function postForm(url: URL, body: string): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const transport = url.protocol === "https:" ? https : http;
-
-    const req = transport.request(
-      url,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Content-Length": Buffer.byteLength(body).toString(),
-          Accept: "application/json",
-        },
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on("data", (chunk: Buffer) => chunks.push(chunk));
-        res.on("end", () => {
-          // Always resolve — error bodies (HTTP 400 with JSON error fields)
-          // are parsed by the caller so Salesforce OAuth error codes get
-          // mapped to specific error subclasses (InvalidCredentialsError, etc.)
-          // instead of a generic SalesforceAuthError.
-          resolve(Buffer.concat(chunks).toString("utf-8"));
-        });
-      },
-    );
-
-    req.on("error", (err: Error) => {
-      reject(
-        new ConnectivityError(
-          `Cannot reach ${url.origin}. Check your network connection and instance URL.`,
-          err,
-        ),
-      );
+  private authenticateOnce(message: string): Promise<OAuthTokenResponse> {
+    if (this.inflight) return this.inflight;
+    this.logger.info(message);
+    const attempt = authenticate(this.config).then((response) => {
+      this.current = response;
+      return response;
     });
-
-    req.write(body);
-    req.end();
-  });
+    this.inflight = attempt;
+    const release = (): void => {
+      if (this.inflight === attempt) this.inflight = null;
+    };
+    attempt.then(release, release);
+    return attempt;
+  }
 }

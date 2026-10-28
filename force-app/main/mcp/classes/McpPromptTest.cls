@@ -1,232 +1,137 @@
-/**
- * Comprehensive unit tests for MCP prompt capabilities.
- *
- * <p>Covers the full lifecycle through the {@link McpServer#handleRequest} pipeline:
- * registration, duplicate rejection, prompts/list (with and without arguments),
- * prompts/get, unknown prompt error handling, and capability advertisement in
- * the initialize response.</p>
- */
 @IsTest
-public class McpPromptTest {
+private class McpPromptTest {
+    private static Map<String, Object> get(String name, Map<String, Object> args) {
+        Map<String, Object> p = new Map<String, Object>{ 'name' => name };
+        if (args != null) { p.put('arguments', args); }
+        return p;
+    }
 
-    // ── Test doubles ───────────────────────────────────────────────────
+    private static Map<String, Object> name(String value) {
+        return new Map<String, Object>{ 'name' => value };
+    }
 
-    private class TestPrompt extends McpPromptDefinition {
-        public TestPrompt() {
-            this.name = 'test_prompt';
-            this.description = 'A test prompt';
-            this.arguments = new List<McpPromptArgumentDefinition>{
-                new McpPromptArgumentDefinition('topic', 'The topic to discuss', true),
-                new McpPromptArgumentDefinition('style', 'The style of response', false)
-            };
+    @IsTest
+    static void listShowsPromptMetadataAndArguments() {
+        McpTestKit.Reply r = McpTestKit.modern(McpTestKit.fullServer(), 'prompts/list', null);
+        Map<String, Object> prompt = r.item('prompts', 0);
+        Assert.areEqual('greet', prompt.get('name'));
+        Assert.areEqual('Greet', prompt.get('title'));
+        Assert.areEqual('Greets someone.', prompt.get('description'));
+        List<Object> args = (List<Object>) prompt.get('arguments');
+        Assert.areEqual(2, args.size());
+        Map<String, Object> first = (Map<String, Object>) args[0];
+        Assert.areEqual('name', first.get('name'));
+        Assert.areEqual('Who to greet', first.get('description'));
+        Assert.areEqual(true, first.get('required'));
+        Assert.areEqual(false, ((Map<String, Object>) args[1]).get('required'));
+        Assert.isNotNull(prompt.get('icons'));
+        Assert.areEqual(1, ((Map<String, Object>) prompt.get('_meta')).get('p'));
+        Assert.areEqual(0, r.result().get('ttlMs'));
+        McpTestKit.Reply legacy = McpTestKit.legacy(McpTestKit.fullServer(), 'prompts/list', null);
+        Assert.isFalse(legacy.result().containsKey('ttlMs'));
+    }
+
+    @IsTest
+    static void promptWithoutArgumentsOmitsTheKey() {
+        McpServer s = new McpServer('s', '1').prompt(new Plain());
+        Assert.isFalse(McpTestKit.modern(s, 'prompts/list', null).item('prompts', 0).containsKey('arguments'));
+    }
+
+    @IsTest
+    static void getReturnsEveryContentType() {
+        McpTestKit.Reply r = McpTestKit.modern(McpTestKit.fullServer(), 'prompts/get', get('greet', new Map<String, Object>{ 'name' => 'Ada' }));
+        Assert.areEqual(200, r.status);
+        Assert.areEqual('Greeting', r.result().get('description'));
+        Assert.areEqual(2, ((Map<String, Object>) r.result().get('_meta')).get('pm'));
+        Assert.areEqual('complete', r.result().get('resultType'));
+        List<Object> messages = r.items('messages');
+        Assert.areEqual(5, messages.size());
+        Map<String, Object> m0 = (Map<String, Object>) messages[0];
+        Assert.areEqual('user', m0.get('role'));
+        Assert.areEqual('Hello Ada', ((Map<String, Object>) m0.get('content')).get('text'));
+        Assert.areEqual('assistant', ((Map<String, Object>) messages[1]).get('role'));
+        Assert.areEqual('image', ((Map<String, Object>) ((Map<String, Object>) messages[1]).get('content')).get('type'));
+        Assert.areEqual('audio', ((Map<String, Object>) ((Map<String, Object>) messages[2]).get('content')).get('type'));
+        Assert.areEqual('resource_link', ((Map<String, Object>) ((Map<String, Object>) messages[3]).get('content')).get('type'));
+        Map<String, Object> embedded = (Map<String, Object>) ((Map<String, Object>) messages[4]).get('content');
+        Assert.areEqual('resource', embedded.get('type'));
+        Assert.areEqual('AAAA', ((Map<String, Object>) embedded.get('resource')).get('blob'));
+    }
+
+    @IsTest
+    static void legacyGetHasNoModernFields() {
+        McpTestKit.Reply r = McpTestKit.legacy(McpTestKit.fullServer(), 'prompts/get', get('greet', new Map<String, Object>{ 'name' => 'Ada' }));
+        Assert.isFalse(r.result().containsKey('resultType'));
+        Assert.areEqual(5, r.items('messages').size());
+    }
+
+    @IsTest
+    static void argumentsAreOptionalWhenNoneAreRequired() {
+        McpServer s = new McpServer('s', '1').prompt(new Plain());
+        McpTestKit.Reply r = McpTestKit.modern(s, 'prompts/get', name('plain'));
+        Assert.areEqual(0, r.items('messages').size());
+        Assert.isFalse(r.result().containsKey('description'));
+    }
+
+    @IsTest
+    static void missingRequiredArgumentIsInvalidParams() {
+        McpTestKit.Reply r = McpTestKit.modern(McpTestKit.fullServer(), 'prompts/get', get('greet', new Map<String, Object>()));
+        Assert.areEqual(200, r.status);
+        Assert.areEqual(-32602, r.code());
+        Assert.areEqual('Missing required argument: name', r.message());
+        Assert.areEqual(-32602, McpTestKit.modern(McpTestKit.fullServer(), 'prompts/get', name('greet')).code());
+        // the optional argument may be omitted
+        Assert.isNull(McpTestKit.modern(McpTestKit.fullServer(), 'prompts/get', get('greet', new Map<String, Object>{ 'name' => 'a' })).json.get('error'));
+    }
+
+    @IsTest
+    static void nonStringArgumentsAreInvalidParams() {
+        for (Object bad : new List<Object>{ 5, true, new Map<String, Object>(), new List<Object>() }) {
+            McpTestKit.Reply r = McpTestKit.modern(McpTestKit.fullServer(), 'prompts/get', get('greet', new Map<String, Object>{ 'name' => bad }));
+            Assert.areEqual(-32602, r.code(), JSON.serialize(bad));
+            Assert.isTrue(r.message().contains('must be a string'));
         }
-        public override McpPromptResult get(Map<String, String> arguments) {
-            McpPromptResult result = new McpPromptResult();
-            result.description = 'Generated prompt for: ' + arguments.get('topic');
-            result.messages = new List<McpPromptMessage>{
-                new McpPromptMessage('user', new McpTextContent('Tell me about ' + arguments.get('topic')))
-            };
-            return result;
-        }
+        Map<String, Object> notObject = new Map<String, Object>{ 'name' => 'greet', 'arguments' => 'x' };
+        Assert.areEqual(-32602, McpTestKit.modern(McpTestKit.fullServer(), 'prompts/get', notObject).code());
     }
-
-    private class SimplePrompt extends McpPromptDefinition {
-        public SimplePrompt() {
-            this.name = 'simple_prompt';
-            this.description = 'A simple prompt with no args';
-        }
-        public override McpPromptResult get(Map<String, String> arguments) {
-            McpPromptResult result = new McpPromptResult();
-            result.messages = new List<McpPromptMessage>{
-                new McpPromptMessage('user', new McpTextContent('Hello'))
-            };
-            return result;
-        }
-    }
-
-    // ── Helper ─────────────────────────────────────────────────────────
-
-    private static Map<String, Object> executeRequest(McpServer server, String jsonBody) {
-        RestRequest req = new RestRequest();
-        req.requestBody = Blob.valueOf(jsonBody);
-        RestResponse res = new RestResponse();
-        server.handleRequest(req, res);
-        if (res.responseBody == null) {
-            return null;
-        }
-        return (Map<String, Object>) JSON.deserializeUntyped(res.responseBody.toString());
-    }
-
-    // ── 1. Prompt registration ─────────────────────────────────────────
 
     @IsTest
-    static void testPromptRegistration() {
-        McpServer server = new McpServer();
-        server.registerPrompt(new TestPrompt());
-        // No exception means success
-        System.assert(true, 'Prompt registration should succeed without exception');
+    static void unknownPromptAndHandlerFailures() {
+        Assert.areEqual(-32602, McpTestKit.modern(McpTestKit.fullServer(), 'prompts/get', name('nope')).code());
+        Assert.areEqual(-32602, McpTestKit.legacy(McpTestKit.fullServer(), 'prompts/get', new Map<String, Object>{ 'name' => 5 }).code());
+        McpTestKit.Reply boom = McpTestKit.modern(McpTestKit.fullServer(), 'prompts/get', get('greet', new Map<String, Object>{ 'name' => 'boom' }));
+        Assert.areEqual(-32602, boom.code());
+        Assert.areEqual('no boom \\ "here"\n', boom.message());
+        McpTestKit.Reply crash = McpTestKit.modern(McpTestKit.fullServer(), 'prompts/get', get('greet', new Map<String, Object>{ 'name' => 'crash' }));
+        Assert.areEqual(-32603, crash.code());
+        Assert.areEqual('Internal error', crash.message());
+        Assert.isFalse(crash.body.contains('crash'));
+        Assert.areEqual(-32603, McpTestKit.modern(McpTestKit.fullServer(), 'prompts/get', get('greet', new Map<String, Object>{ 'name' => 'null' })).code());
     }
 
-    // ── 2. Duplicate prompt rejection ──────────────────────────────────
-
     @IsTest
-    static void testDuplicatePromptRejection() {
-        McpServer server = new McpServer();
-        server.registerPrompt(new TestPrompt());
-
-        Boolean caught = false;
-        try {
-            server.registerPrompt(new TestPrompt());
-        } catch (McpExceptions.DuplicateRegistrationException e) {
-            caught = true;
-        }
-        System.assert(caught, 'Registering a duplicate prompt name should throw DuplicateRegistrationException');
+    static void promptDefinitionMisuseIsRejected() {
+        List<String> failures = new List<String>();
+        try { new Plain().argument('', null, null); failures.add('blank'); } catch (McpConfigurationException e) { }
+        try { new Plain().argument('a', null, null).argument('a', null, null); failures.add('duplicate'); } catch (McpConfigurationException e) { }
+        try { new NamedPrompt(null); failures.add('null name'); } catch (McpConfigurationException e) { }
+        try { new NamedPrompt('has space'); failures.add('bad name'); } catch (McpConfigurationException e) { }
+        try { new McpPromptResult().user(null); failures.add('null user'); } catch (McpConfigurationException e) { }
+        try { new McpPromptResult().assistant(null); failures.add('null assistant'); } catch (McpConfigurationException e) { }
+        Assert.areEqual(new List<String>(), failures);
+        Assert.areEqual(new List<String>{ 'a' }, new Plain().argument('a', null, true).argument('b', null, null).requiredArguments());
+        Assert.isTrue(new Plain().argument('a', null, null).declaresArgument('a'));
+        Assert.isFalse(new Plain().declaresArgument('a'));
+        Assert.areEqual('plain', new Plain().getName());
     }
 
-    // ── 3. prompts/list with arguments ─────────────────────────────────
-
-    @IsTest
-    static void testPromptsList() {
-        McpServer server = new McpServer();
-        server.registerPrompt(new TestPrompt());
-
-        Map<String, Object> response = executeRequest(
-            server,
-            '{"jsonrpc":"2.0","id":1,"method":"prompts/list","params":{}}'
-        );
-
-        System.assertNotEquals(null, response, 'Response should not be null');
-
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        System.assertNotEquals(null, result, 'Result should not be null');
-
-        List<Object> prompts = (List<Object>) result.get('prompts');
-        System.assertNotEquals(null, prompts, 'Prompts array should be present');
-        System.assertEquals(1, prompts.size(), 'Should have exactly one prompt');
-
-        Map<String, Object> entry = (Map<String, Object>) prompts[0];
-        System.assertEquals('test_prompt', entry.get('name'));
-        System.assertEquals('A test prompt', entry.get('description'));
-
-        List<Object> args = (List<Object>) entry.get('arguments');
-        System.assertNotEquals(null, args, 'Arguments array should be present');
-        System.assertEquals(2, args.size(), 'Should have two arguments');
-
-        Map<String, Object> arg0 = (Map<String, Object>) args[0];
-        System.assertEquals('topic', arg0.get('name'));
-        System.assertEquals('The topic to discuss', arg0.get('description'));
-        System.assertEquals(true, arg0.get('required'));
-
-        Map<String, Object> arg1 = (Map<String, Object>) args[1];
-        System.assertEquals('style', arg1.get('name'));
-        System.assertEquals('The style of response', arg1.get('description'));
-        System.assertEquals(false, arg1.get('required'));
+    public class NamedPrompt extends McpPrompt {
+        public NamedPrompt(String name) { super(name); }
+        public override McpPromptResult get(McpRequest request) { return new McpPromptResult(); }
     }
 
-    // ── 4. prompts/list with no arguments ──────────────────────────────
-
-    @IsTest
-    static void testPromptsListNoArgs() {
-        McpServer server = new McpServer();
-        server.registerPrompt(new SimplePrompt());
-
-        Map<String, Object> response = executeRequest(
-            server,
-            '{"jsonrpc":"2.0","id":1,"method":"prompts/list","params":{}}'
-        );
-
-        System.assertNotEquals(null, response, 'Response should not be null');
-
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        List<Object> prompts = (List<Object>) result.get('prompts');
-        System.assertEquals(1, prompts.size(), 'Should have exactly one prompt');
-
-        Map<String, Object> entry = (Map<String, Object>) prompts[0];
-        System.assertEquals('simple_prompt', entry.get('name'));
-        System.assertEquals('A simple prompt with no args', entry.get('description'));
-        // SimplePrompt has no arguments defined, so the arguments key should be absent
-        System.assertEquals(null, entry.get('arguments'),
-            'Prompt with no arguments should not include an arguments key');
-    }
-
-    // ── 5. prompts/get ─────────────────────────────────────────────────
-
-    @IsTest
-    static void testPromptsGet() {
-        McpServer server = new McpServer();
-        server.registerPrompt(new TestPrompt());
-
-        Map<String, Object> response = executeRequest(
-            server,
-            '{"jsonrpc":"2.0","id":1,"method":"prompts/get","params":{"name":"test_prompt","arguments":{"topic":"AI"}}}'
-        );
-
-        System.assertNotEquals(null, response, 'Response should not be null');
-
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        System.assertNotEquals(null, result, 'Result should not be null');
-
-        // Verify description
-        System.assertEquals('Generated prompt for: AI', result.get('description'));
-
-        // Verify messages
-        List<Object> messages = (List<Object>) result.get('messages');
-        System.assertNotEquals(null, messages, 'Messages array should be present');
-        System.assertEquals(1, messages.size(), 'Should have exactly one message');
-
-        Map<String, Object> msg = (Map<String, Object>) messages[0];
-        System.assertEquals('user', msg.get('role'), 'Message role should be user');
-
-        Map<String, Object> content = (Map<String, Object>) msg.get('content');
-        System.assertNotEquals(null, content, 'Content should be present');
-        System.assertEquals('text', content.get('type'), 'Content type should be text');
-        System.assert(
-            ((String) content.get('text')).contains('AI'),
-            'Content text should contain the topic argument value "AI"'
-        );
-        System.assertEquals('Tell me about AI', content.get('text'));
-    }
-
-    // ── 6. prompts/get unknown prompt ──────────────────────────────────
-
-    @IsTest
-    static void testPromptsGetUnknownPrompt() {
-        McpServer server = new McpServer();
-        server.registerPrompt(new TestPrompt());
-
-        Map<String, Object> response = executeRequest(
-            server,
-            '{"jsonrpc":"2.0","id":1,"method":"prompts/get","params":{"name":"nonexistent_prompt","arguments":{}}}'
-        );
-
-        System.assertNotEquals(null, response, 'Response should not be null');
-
-        Map<String, Object> error = (Map<String, Object>) response.get('error');
-        System.assertNotEquals(null, error, 'Error should be present');
-        System.assertEquals(-32602, (Integer) error.get('code'),
-            'Unknown prompt should produce error code -32602');
-    }
-
-    // ── 7. initialize includes prompt capability ───────────────────────
-
-    @IsTest
-    static void testInitializeIncludesPromptCapability() {
-        McpServer server = new McpServer();
-        server.registerPrompt(new TestPrompt());
-
-        Map<String, Object> response = executeRequest(
-            server,
-            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
-        );
-
-        System.assertNotEquals(null, response, 'Response should not be null');
-
-        Map<String, Object> result = (Map<String, Object>) response.get('result');
-        System.assertNotEquals(null, result, 'Result should not be null');
-
-        Map<String, Object> capabilities = (Map<String, Object>) result.get('capabilities');
-        System.assertNotEquals(null, capabilities, 'Capabilities should be present');
-        System.assert(capabilities.containsKey('prompts'),
-            'Capabilities should include "prompts" when a prompt is registered');
+    public class Plain extends McpPrompt {
+        public Plain() { super('plain'); }
+        public override McpPromptResult get(McpRequest request) { return new McpPromptResult(); }
     }
 }

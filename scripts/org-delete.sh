@@ -12,4 +12,4 @@ sf org delete scratch \
 echo "Scratch org '${ALIAS}' deleted."
 
 # To clean all expired/unused scratch orgs for the devhub:
-#   sf org list --clean --json --target-dev-hub mcp-lib-devhub
+#   sf org list --clean --json --target-dev-hub <your-dev-hub>
