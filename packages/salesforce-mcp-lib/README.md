@@ -7,11 +7,8 @@ TypeScript proxy that bridges MCP clients to a Salesforce Apex MCP endpoint. Its
 
 **Zero npm production dependencies.** Node.js >= 20.
 
-> **npm 2.0.0 is pending publication.** Version 2.0.0 is prepared in the repository but not yet published to npm.
-> `npx salesforce-mcp-lib` and `npx -y salesforce-mcp-lib` currently download a 1.x release, which does not
-> work with the 2.x Apex framework. Until 2.0.0 is published, build from a checkout (`npm ci && npm run build` in
-> `packages/salesforce-mcp-lib`, or `npm pack` and install the tarball) and run `node /path/to/dist/index.js`
-> wherever the examples below use `npx`. The `npx` form applies only after 2.0.0 is published.
+> **Version 2.0.0 is published on npm.** Run it with `npx salesforce-mcp-lib@2.0.0`. 1.x releases do not
+> work with the 2.x Apex framework.
 > The Salesforce package 2.0.0.1 is released. Install the Apex side with
 > `https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000qXzBQAU`
 > or see the [main README](https://github.com/Damecek/salesforce-mcp-lib#1-install-the-apex-framework).

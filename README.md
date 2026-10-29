@@ -15,8 +15,9 @@ Two packages, zero external dependencies:
 | **npm stdio proxy** | OAuth 2.0 lifecycle + stdio-to-HTTPS bridge. Optional when the consumer already handles Salesforce tokens. | `npx salesforce-mcp-lib` |
 
 > **Release status.** The `SalesforceMcpLib` 2.0.0.1 package version is promoted and released
-> (`04tdL000000qXzBQAU`, 99% package coverage). The npm 2.0.0 is pending publication: until it is published,
-> `npx salesforce-mcp-lib` fetches a 1.x release, so run the proxy from a local build or tarball.
+> (`04tdL000000qXzBQAU`, 99% package coverage). The proxy `salesforce-mcp-lib@2.0.0` is published on npm,
+> so `npx salesforce-mcp-lib@2.0.0` runs it. Install the Apex side with
+> `https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000qXzBQAU`.
 > Test evidence: 188 Apex tests pass (97% org-wide coverage, 99% package coverage), 331 npm tests pass, and a fresh
 > install and an upgrade from 1.2.0.1 succeeded in scratch orgs. An upgrade of a real 1.x org is not verified.
 
@@ -227,8 +228,8 @@ Then add the server to Claude Code through `/mcp`, or edit `~/.claude.json`:
 **Client credentials** (service account): add `"--client-secret", "YOUR_CLIENT_SECRET"` to `args`.
 
 The auth mode is detected from the config: `--client-secret` present means client credentials, absent means per-user.
-Until 2.0.0 is published on npm, run the proxy from a checkout: `cd packages/salesforce-mcp-lib && npm ci && npm run build`,
-then use `node /path/to/packages/salesforce-mcp-lib/dist/index.js` instead of `npx -y salesforce-mcp-lib`.
+To pin the proxy to this release, use `npx -y salesforce-mcp-lib@2.0.0`. To run from a checkout instead,
+`cd packages/salesforce-mcp-lib && npm ci && npm run build`, then use `node /path/to/packages/salesforce-mcp-lib/dist/index.js`.
 
 ---
 

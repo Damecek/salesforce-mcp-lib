@@ -1,6 +1,6 @@
 # MCP v2 handoff (2026-10-28)
 
-Status: SF package 2.0.0.1 promoted and released; code committed and merged to `main`. npm 2.0.0 publication and the git tag are pending.
+Status: SF package 2.0.0.1 promoted and released; code committed and merged to `main`. npm 2.0.0 is published and the git tag `v2.0.0-sf2.0.0-1` is created (see the release report).
 This report does not claim full MCP protocol compliance (no per-tool rate limiting, see Known gaps).
 
 ## Package IDs
@@ -75,4 +75,4 @@ Final parent verification: removed an extra trailing blank line in oauth.ts; git
 - Promoted `04tdL000000qXzBQAU` (2.0.0.1) via mcp-lib-devhub: `IsReleased` true, coverage 99%.
   Production install URL: https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000qXzBQAU
 - Committed on `feat/mcp-v2` and merged to `main` (docs-only changes after promotion; code unchanged since the validated run).
-- Pending: `npm publish` of 2.0.0 (npm auth missing at the time of writing), then tag `v2.0.0-sf2.0.0-1`. Until npm publishes, READMEs describe npm 2.0.0 as pending and tell users to run a local build.
+- Published: `salesforce-mcp-lib@2.0.0` on npm, tag `v2.0.0-sf2.0.0-1`. Details in `2026-10-29-mcp-v2-release-report.md`.
