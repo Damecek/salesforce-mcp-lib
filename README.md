@@ -482,6 +482,10 @@ The framework cannot enforce these for you:
 
 ---
 
+## Example: sales meeting demo
+
+A synthetic, read-only example with four tools, resources, a prompt and completion is in [`docs/mcp-sales-demo.md`](docs/mcp-sales-demo.md) (source in `dev/mcp-sales-demo/`).
+
 ## Migrating from 1.x
 
 2.0.0 is a breaking release. The generic JSON-RPC layer (`force-app/main/json-rpc`, 14 classes) and the 1.x MCP classes
